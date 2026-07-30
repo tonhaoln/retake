@@ -28,6 +28,7 @@ struct Options {
     var mic = false
     var keys = false
     var systemAudio = true
+    var notify = true
     var list = false
     var outDir: String? = nil
 }
@@ -48,6 +49,7 @@ func parseArgs() -> Options {
         case "--mic":     o.mic = true
         case "--keys":    o.keys = true
         case "--no-system-audio": o.systemAudio = false
+        case "--no-notify": o.notify = false
         case "--list":    o.list = true
         case "--out":     o.outDir = it.next()
         case "-h", "--help":
@@ -64,6 +66,7 @@ func parseArgs() -> Options {
                                  display in the editor). Off by default — without this flag
                                  only key *timings* are logged, never the keys themselves.
               --no-system-audio  don't capture system/app audio
+              --no-notify        skip the local "Saved" notification on stop
               --out DIR          output folder (default ~/Desktop/Retake/<timestamp>.take)
             Stop with Ctrl+C, or ⌃⎋ (Control+Escape) from any app.
             Tip: don't move the window during a --window recording — the cursor
@@ -227,6 +230,7 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
     private var sessionStarted = false
     private(set) var firstFrameTime: Double = 0
+    private(set) var droppedFrames = 0
     private let queue = DispatchQueue(label: "screen.capture")
     private let audioQueue = DispatchQueue(label: "screen.audio")
 
@@ -314,6 +318,7 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
             writer.startSession(atSourceTime: pts)
         }
         if input.isReadyForMoreMediaData { input.append(sb) }
+        else if sessionStarted { droppedFrames += 1 }   // encoder back-pressure; .idle frames are NOT drops
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
@@ -547,13 +552,26 @@ struct Main {
           Stop: Ctrl+C here, or ⌃⎋ (Control+Escape) from anywhere.
         """)
 
-        // Wait for Ctrl+C / hotkey
-        signal(SIGINT, SIG_IGN)
-        let sig = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+        // Wait for Ctrl+C / hotkey. SIGTERM and SIGHUP (a closed terminal window)
+        // get the same graceful stop, so an accident never costs the take.
+        // One continuation, three sources: the first signal wins, the rest are
+        // swallowed by the guard (a double resume would crash mid-teardown).
+        var sigSources: [DispatchSourceSignal] = []
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-            sig.setEventHandler { sig.cancel(); c.resume() }
-            sig.resume()
+            var resumed = false                       // all handlers run on .main
+            for sig in [SIGINT, SIGTERM, SIGHUP] {
+                signal(sig, SIG_IGN)
+                let src = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+                src.setEventHandler {
+                    guard !resumed else { return }
+                    resumed = true
+                    c.resume()
+                }
+                src.resume()
+                sigSources.append(src)
+            }
         }
+        _ = sigSources.count   // keep the sources alive through teardown
 
         print("\n■ Stopping…")
         cursor.stop()
@@ -584,10 +602,24 @@ struct Main {
             try? data.write(to: bundle.appendingPathComponent("meta.json"))
         }
 
+        if screen.droppedFrames > 0 {
+            print("⚠️  \(screen.droppedFrames) frame\(screen.droppedFrames == 1 ? "" : "s") dropped (encoder back-pressure) — a lower --fps helps.")
+        }
         print("""
         ✓ Saved \(bundle.lastPathComponent)
           Open the editor (retake-editor.html) in Chrome and load this folder.
         """)
+        if opts.notify {
+            // Local notification only — nothing leaves the machine. The message
+            // travels as argv so no user-controlled path touches AppleScript.
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            p.arguments = ["-e", "on run argv",
+                           "-e", "display notification (item 1 of argv) with title \"Retake\"",
+                           "-e", "end run",
+                           "Saved \(bundle.lastPathComponent)"]
+            if (try? p.run()) != nil { p.waitUntilExit() }
+        }
         exit(0)
     }
 }
