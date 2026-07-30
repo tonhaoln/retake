@@ -77,6 +77,12 @@ the raw video (with system audio), cursor data, and webcam/mic track.
 One thing about `--window`: the cursor is logged against the window's starting
 position, so don't move the window mid-recording.
 
+If something goes wrong mid-recording — you close the terminal, the machine
+gives up, you force-quit — the take survives. Closing the terminal stops it
+cleanly, and a hard crash costs you the last few seconds rather than the whole
+session: the video is written in fragments and the cursor data is flushed to
+disk as you go.
+
 Privacy note: by default the recorder logs *when* keys are pressed but never
 *which* keys. Full detail in [Privacy](#privacy) below.
 

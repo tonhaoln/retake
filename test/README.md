@@ -13,3 +13,12 @@ editor has codec fallbacks); regenerate it with `./make-fixture.sh`.
 
 `*.test.mjs` files are gates — `npm test` runs them all and stops on the first
 failure. `shot-*.mjs` files are screenshot helpers, not gates.
+
+`verify-real-take.mjs` is the manual check for the one thing the gates can't
+see: real H.264 playback. It drives the installed Google Chrome instead of the
+bundled Chromium, so it needs a real recording as an argument.
+
+    node verify-real-take.mjs ~/Desktop/Retake/<a recording>.take
+
+Run it after any recorder change, and against a bundle from a killed process
+to confirm crash recovery.
