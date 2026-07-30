@@ -646,11 +646,14 @@ struct Main {
             // Local notification only — nothing leaves the machine. The message
             // travels as argv so no user-controlled path touches AppleScript.
             let p = Process()
+            let home = FileManager.default.homeDirectoryForCurrentUser.path
+            let folder = bundle.deletingLastPathComponent().path
+                .replacingOccurrences(of: home, with: "~")
             p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
             p.arguments = ["-e", "on run argv",
-                           "-e", "display notification (item 1 of argv) with title \"Retake\"",
+                           "-e", "display notification (item 1 of argv) with title \"Retake\" subtitle (item 2 of argv)",
                            "-e", "end run",
-                           "Saved \(bundle.lastPathComponent)"]
+                           bundle.lastPathComponent, "Saved to \(folder)"]
             if (try? p.run()) != nil { p.waitUntilExit() }
         }
         exit(0)

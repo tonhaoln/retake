@@ -177,7 +177,9 @@ label.row .val{
 .swatch{
   aspect-ratio:1; border-radius:6px; cursor:pointer; padding:0;
   border:2px solid transparent;                             /* the selected-state affordance */
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);         /* paint chip, not a button */
+  box-shadow:0 0 0 1px rgba(0,0,0,.5);                      /* separates the near-black tiles from
+                                                               the panel without a light-source cue:
+                                                               a light rim would read as a bevel */
   transition:transform .15s var(--ease), border-color .15s var(--ease);
 }
 .swatch:hover{transform:scale(1.07)}
@@ -281,7 +283,7 @@ label.row .val{
     <div id="dropHint">
       <div class="orb"></div>
       <h2>Drop a recording.</h2>
-      <div class="sub">A <b>.take</b> folder from the recorder — or any screen-recording video.</div>
+      <div class="sub">A <b>.take</b> folder from the recorder, saved to <b>~/Desktop/Retake</b> — or any screen-recording video.</div>
       <div class="steps"><span>Record</span><span>·&nbsp;&nbsp;Edit</span><span>·&nbsp;&nbsp;Export</span></div>
       <div class="btns">
         <button id="openBtn2">Choose folder…</button>
