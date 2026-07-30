@@ -80,7 +80,7 @@ on-screen keystroke display. Don't use it while typing passwords.
      moves. Adjusting them re-generates the auto zooms live (your manually added
      zooms are left alone).
    - **Sidebar**: background gradients or your own image; padding, corner radius,
-     shadow; cursor style (arrow / dot / spotlight), size, smoothing and click
+     shadow; cursor style (arrow / dot / halo), size, smoothing and click
      ripples; hide-when-idle (cursor fades out after a configurable pause and
      returns the instant it moves — clicks count as activity); motion blur on
      camera moves; keystroke display (if recorded with `--keys`); webcam corner,
@@ -95,8 +95,6 @@ on-screen keystroke display. Don't use it while typing passwords.
      Audio, zooms and click sounds all stay in sync across cuts.
    - **Halo cursor**: a clearly-visible tinted disc around the cursor (white by
      default; tints + glow strength in the Cursor panel), no arrow on top.
-   - **Spotlight cursor**: dims the whole frame except a circle around the
-     cursor — the classic guide-the-eye effect; Dim slider sets the strength.
    - **Trim**: drag the ⟨ ⟩ brackets on the timeline.
    - **Undo**: ⌘Z / ⇧⌘Z walks every timeline and crop edit back and forward.
    - Press **?** for all keyboard shortcuts.

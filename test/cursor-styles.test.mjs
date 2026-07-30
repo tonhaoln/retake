@@ -13,25 +13,36 @@ await page.waitForFunction(() => !document.getElementById('exportBtn').disabled,
 await page.evaluate(() => { pause(); document.querySelector('#cursorStyle button[data-v="ring"]').click(); seekTo(1.0); });
 await page.waitForTimeout(600);
 const ring = await page.evaluate(() => ({
-  label: document.getElementById('spotOp').closest('label').firstChild.textContent,
+  spotShown: document.getElementById('spotUI').style.display !== 'none',
   colorsShown: document.getElementById('spotColors').style.display !== 'none',
-  spotShown: document.getElementById('spotUI').style.display !== 'none'
+  label: document.getElementById('spotOp').closest('label').firstChild.textContent,
+  dimGone: !document.querySelector('#cursorStyle button[data-v="dim"]'),
+  styleCount: document.querySelectorAll('#cursorStyle button').length
 }));
 console.log('RING:', JSON.stringify(ring));
 check('halo shows spot panel', ring.spotShown);
 check('halo shows tint swatches', ring.colorsShown);
 check('halo slider label is Glow', ring.label === 'Glow');
+check('Spotlight button is gone', ring.dimGone);
+check('four cursor styles remain', ring.styleCount === 4);
 await page.screenshot({ path: OUT + '/16-halo.png' });
-await page.evaluate(() => { document.querySelector('#cursorStyle button[data-v="dim"]').click(); const el = document.getElementById('spotOp'); el.value = 55; el.dispatchEvent(new Event('input')); });
-await page.waitForTimeout(400);
-await page.screenshot({ path: OUT + '/17-dim.png' });
-const labels = await page.evaluate(() => ({
-  dimLabel: document.getElementById('spotOp').closest('label').firstChild.textContent,
-  colorsHidden: document.getElementById('spotColors').style.display === 'none'
+
+// legacy saves carrying the retired 'dim' style migrate to Halo on load
+await page.evaluate(() => {
+  const k = 'retake:' + S.fileKey;
+  const data = { v: 2, set: Object.assign({}, S.set, { cursorStyle: 'dim' }), segs: S.segs, trimIn: S.trimIn, trimOut: S.trimOut, splits: S.splits, cuts: S.cuts };
+  localStorage.setItem(k, JSON.stringify(data));
+});
+await page.reload();
+await page.setInputFiles('#dirInput', FIX);
+await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
+const migrated = await page.evaluate(() => ({
+  style: S.set.cursorStyle,
+  selExists: !!document.querySelector('#cursorStyle button.sel')
 }));
-console.log(JSON.stringify(labels));
-check('spotlight slider label is Dim', labels.dimLabel === 'Dim');
-check('spotlight hides tint swatches', labels.colorsHidden);
+console.log('MIGRATED:', JSON.stringify(migrated));
+check('saved dim migrates to ring', migrated.style === 'ring');
+check('a style button is selected after migration', migrated.selExists);
 await browser.close();
 if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE7');

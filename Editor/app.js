@@ -178,6 +178,7 @@ async function loadFromFiles(fileList) {
       const p = JSON.parse(raw);
       Object.assign(S.set, p.set || {});
       if (S.set.bg === -1) S.set.bg = 0;   // background images aren't persisted
+      if (S.set.cursorStyle === 'dim') S.set.cursorStyle = 'ring';   // Spotlight retired; Halo is its heir
       S.segs = (p.segs || []).map(s => ({
         ...s,
         t0: clamp(s.t0, 0, S.duration), t1: clamp(s.t1, 0, S.duration)
@@ -701,20 +702,6 @@ function draw(ctx, W, H, t, opts = {}) {
         ig.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.beginPath(); ctx.arc(gx, gy, r, 0, 7);
         ctx.fillStyle = ig; ctx.fill();
-      } else if (style === 'dim') {
-        // true spotlight: dim everything except a circle around the cursor
-        const r = 95 * cs;
-        const dim = S.set.spotOpacity / 100;
-        ctx.beginPath();
-        ctx.rect(rx, ry, rw, rh);
-        ctx.arc(gx, gy, r, 0, 7, true);          // punch the hole
-        ctx.fillStyle = `rgba(0,0,0,${dim})`;
-        ctx.fill();
-        const g = ctx.createRadialGradient(gx, gy, r * 0.68, gx, gy, r);
-        g.addColorStop(0, 'rgba(0,0,0,0)');
-        g.addColorStop(1, `rgba(0,0,0,${dim})`);
-        ctx.beginPath(); ctx.arc(gx, gy, r, 0, 7);
-        ctx.fillStyle = g; ctx.fill();
       } else if (style === 'dot') {
         ctx.beginPath(); ctx.arc(gx, gy, 7 * cs, 0, 7);
         ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
@@ -725,10 +712,9 @@ function draw(ctx, W, H, t, opts = {}) {
       }
     };
 
-    // motion blur on the cursor itself when it's moving fast (dim excluded —
-    // smearing a huge soft hole costs a lot and shows nothing)
+    // motion blur on the cursor itself when it's moving fast
     let cpasses = [[cx, cy]];
-    if (S.set.mblur && style !== 'dim') {
+    if (S.set.mblur) {
       const dt = 0.02;
       const a = cursorAt(t - dt), b = cursorAt(t + dt);
       const v = Math.hypot(b.x - a.x, b.y - a.y) / (2 * dt);   // video px/s
@@ -1447,10 +1433,9 @@ function bindSeg(id, key, after) {
   }));
 }
 function updateSpotUI() {
-  const st = S.set.cursorStyle;
-  $('spotUI').style.display = (st === 'ring' || st === 'dim') ? '' : 'none';
-  $('spotColors').style.display = st === 'ring' ? '' : 'none';   // dim is always dark
-  $('spotOp').closest('label').querySelector('.lab').textContent = st === 'dim' ? 'Dim' : 'Glow';
+  const show = S.set.cursorStyle === 'ring' ? '' : 'none';
+  $('spotUI').style.display = show;
+  $('spotColors').style.display = show;
 }
 bindSeg('cursorStyle', 'cursorStyle', updateSpotUI);
 bindSeg('camPos', 'camPos');
