@@ -2,30 +2,31 @@
 
 Open source Screen Studio alternative. Two parts: a native macOS recorder
 (Swift CLI) and a one-file browser editor (canvas compositor + WebCodecs).
-Named 2026-07-30 ("Record once. Retake forever."). The code rename is not
-yet executed: files, the binary and the `.osrec` bundle extension still carry
-the old working name. That rename is the next scheduled job.
+Named 2026-07-30 ("Record once. Retake forever."). Binary is `retake`,
+bundles are `.take`; legacy `.osrec` bundles must always keep opening (the
+loader keys off bundle contents, never the extension — do not add one).
 
 ## Layout
 
-- `Recorder/` — Swift Package CLI (`openstudio-record`). ScreenCaptureKit,
+- `Recorder/` — Swift Package CLI (`retake`). ScreenCaptureKit,
   cursor logged as DATA (never baked into pixels), system audio, --window/
   --area/--keys. Builds only on macOS: `swift build -c release`, then
-  `sudo cp .build/release/openstudio-record /usr/local/bin/ && hash -r`.
-- `openstudio-editor.html` — the SHIPPED editor (single self-contained file).
-  Built from source: `Editor/openstudio-editor.html` (markup/CSS) +
+  `sudo cp .build/release/retake /usr/local/bin/ && hash -r`.
+- `retake-editor.html` — the SHIPPED editor (single self-contained file).
+  Built from source: `Editor/retake-editor.html` (markup/CSS) +
   `Editor/app.js` (logic) + inlined mp4-muxer.js/gifenc.js via
-  `cd Editor && node build.js` → `Editor/dist-openstudio-editor.html`,
+  `cd Editor && node build.js` → `Editor/dist-retake-editor.html`,
   then copy dist over the root file to ship.
   ⚠️ ALWAYS run build.js before testing — tests load the dist file.
   Never hand-edit the root file or the dist; edit the sources.
-- `test/` — Playwright suite (test.mjs, test2–test12; shot-*.mjs are
-  screenshot helpers, not gates). Setup once: `npm install` and
-  `npx playwright install chromium`. Run: `npm test` from `test/`.
-  Fixture: `test/fixture.osrec` (VP9/Opus because Playwright's Chromium
-  lacks H.264/AAC — real Chrome uses H.264/AAC; the editor has fallbacks).
-  Regenerate with `./make-fixture.sh`. Run ALL test files after any editor
-  change.
+- `test/` — Playwright suite. `*.test.mjs` files are gates (`npm test` runs
+  all eleven); `shot-*.mjs` are screenshot helpers, not gates. Paths resolve
+  through `test/paths.mjs`, so the suite runs on any checkout. Setup once:
+  `npm install` and `npx playwright install chromium`. Run: `npm test` from
+  `test/`. Fixture: `test/fixture.take` (VP9/Opus because Playwright's
+  Chromium lacks H.264/AAC — real Chrome uses H.264/AAC; the editor has
+  fallbacks). Regenerate with `./make-fixture.sh`. Run ALL gates after any
+  editor change.
 
 ## Hard rules
 

@@ -1,12 +1,12 @@
-# OpenStudio — your own Screen Studio
+# Retake — your own Screen Studio
 
 A free, two-part replacement for Screen Studio:
 
-1. **Recorder** (`openstudio-record`) — a tiny native macOS tool that records your screen
+1. **Recorder** (`retake`) — a tiny native macOS tool that records your screen
    *without* the cursor, logs every cursor movement and click, and can record your
-   webcam + microphone at the same time. Everything lands in one `.osrec` folder.
-2. **Editor** (`openstudio-editor.html`) — a single HTML file that runs in Chrome.
-   Drop the `.osrec` folder in and it auto-creates zoom-ins from your clicks, redraws
+   webcam + microphone at the same time. Everything lands in one `.take` folder.
+2. **Editor** (`retake-editor.html`) — a single HTML file that runs in Chrome.
+   Drop the `.take` folder in and it auto-creates zoom-ins from your clicks, redraws
    a buttery-smooth cursor, adds the gradient framing / rounded corners / shadow,
    overlays your webcam bubble, and exports a polished MP4. No install, no server,
    no account, works offline.
@@ -27,7 +27,7 @@ Then build the recorder:
     cd Recorder
     swift build -c release
     sudo mkdir -p /usr/local/bin
-    sudo cp .build/release/openstudio-record /usr/local/bin/
+    sudo cp .build/release/retake /usr/local/bin/
 
 **Permissions** — the first time you record, macOS will ask (or silently block) until
 you grant your terminal app (Terminal / iTerm / Warp) these, under
@@ -41,19 +41,19 @@ After granting Screen Recording you must quit and reopen the terminal app once.
 
 ## Recording
 
-    openstudio-record                    # main display + system audio
-    openstudio-record --webcam           # + webcam bubble + mic
-    openstudio-record --mic              # + mic voiceover, no webcam
-    openstudio-record --window safari    # record one window (see --list for names)
-    openstudio-record --area 100,80,1280,720   # record a region (points, from top-left)
-    openstudio-record --display 1        # record your second display
-    openstudio-record --list             # show displays and windows
-    openstudio-record --keys             # ALSO record which keys you press (see below)
-    openstudio-record --no-system-audio  # skip app/system sound
-    openstudio-record --fps 30           # lighter files
+    retake                    # main display + system audio
+    retake --webcam           # + webcam bubble + mic
+    retake --mic              # + mic voiceover, no webcam
+    retake --window safari    # record one window (see --list for names)
+    retake --area 100,80,1280,720   # record a region (points, from top-left)
+    retake --display 1        # record your second display
+    retake --list             # show displays and windows
+    retake --keys             # ALSO record which keys you press (see below)
+    retake --no-system-audio  # skip app/system sound
+    retake --fps 30           # lighter files
 
 Stop with **Ctrl+C** in the terminal — or **⌃⎋ (Control+Escape)** from any app.
-You get a folder like `~/Desktop/OpenStudio/2026-07-29 14.03.12.osrec` containing
+You get a folder like `~/Desktop/Retake/2026-07-29 14.03.12.take` containing
 the raw video (with system audio), cursor data, and webcam/mic track.
 
 One thing about `--window`: the cursor is logged against the window's starting
@@ -66,9 +66,10 @@ on-screen keystroke display. Don't use it while typing passwords.
 
 ## Editing
 
-1. Open `openstudio-editor.html` in **Chrome** (or Edge/Arc — anything Chromium).
+1. Open `retake-editor.html` in **Chrome** (or Edge/Arc — anything Chromium).
    Tip: keep it in your Dock — it's just a file.
-2. Drag the `.osrec` folder into the window.
+2. Drag the `.take` folder into the window. (Recordings made before the
+   rename — `.osrec` folders — open exactly the same, edits included.)
 3. It auto-creates zooms from your clicks. Then:
    - **Timeline**: drag zoom blocks to move them, drag their edges to resize,
      double-click empty space to add one, ⌫ deletes the selected one.
@@ -106,13 +107,13 @@ on-screen keystroke display. Don't use it while typing passwords.
    — right for READMEs and PRs.)
 
 Your edits are **saved automatically** (in the browser, per recording) — close the
-tab, come back tomorrow, drop the same `.osrec` folder in, and everything is where
+tab, come back tomorrow, drop the same `.take` folder in, and everything is where
 you left it.
 
 ## How it works (the trick)
 
 Screen Studio's polish comes from *not* baking the cursor into the recording.
-OpenStudio does the same: the screen is captured cursor-free, the cursor path is
+Retake does the same: the screen is captured cursor-free, the cursor path is
 recorded as data, and the editor re-renders a smoothed, resizable cursor on top —
 which is also why zooming stays tack-sharp on the pointer.
 
