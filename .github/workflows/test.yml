@@ -1,0 +1,46 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  editor:
+    name: Editor suite (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install test dependencies
+        working-directory: test
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: test
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the editor
+        run: node Editor/build.js
+
+      # The shipped single file is a build artifact — it must always match its
+      # sources, or someone hand-edited the wrong file.
+      - name: Shipped editor matches its sources
+        run: cmp Editor/dist-retake-editor.html retake-editor.html
+
+      - name: Run every gate
+        working-directory: test
+        run: npm test
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test/out
+          retention-days: 7
