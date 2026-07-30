@@ -242,7 +242,11 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     private let audioQueue = DispatchQueue(label: "screen.audio")
 
     init(outputURL: URL, width: Int, height: Int, fps: Int, systemAudio: Bool) throws {
-        writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+        // QuickTime container + movie fragments: the file stays playable even
+        // if the process dies mid-recording — a crash loses seconds, not the
+        // take. Chrome plays H.264/AAC in .mov (webcam.mov relies on that).
+        writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
+        writer.movieFragmentInterval = CMTime(seconds: 5, preferredTimescale: 600)
         let bitrate = min(max(width * height * 6, 8_000_000), 60_000_000)
         let settings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
@@ -528,7 +532,7 @@ struct Main {
         func writeMeta(cameraFile: String?, webcamOffset: Double?) {
             var meta: [String: Any] = [
                 "version": 2,
-                "screen": "screen.mp4",
+                "screen": "screen.mov",
                 "cursor": "cursor.json",
                 "pointWidth": pointW,
                 "pointHeight": pointH,
@@ -553,7 +557,7 @@ struct Main {
 
         let screen: ScreenRecorder
         do {
-            screen = try ScreenRecorder(outputURL: bundle.appendingPathComponent("screen.mp4"),
+            screen = try ScreenRecorder(outputURL: bundle.appendingPathComponent("screen.mov"),
                                         width: pixelW, height: pixelH, fps: opts.fps,
                                         systemAudio: opts.systemAudio)
             try await screen.start(filter: filter, width: pixelW, height: pixelH, fps: opts.fps,
