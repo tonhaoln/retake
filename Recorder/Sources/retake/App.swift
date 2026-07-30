@@ -1,10 +1,10 @@
-// openstudio-record — minimal Screen Studio-style recorder
+// retake — minimal Screen Studio-style recorder
 // Records the screen WITHOUT the cursor, logs cursor positions + clicks to JSON,
 // captures system audio into the screen file, and (optionally) records the
 // webcam + microphone alongside. The companion editor does the pretty stuff.
 //
 // Usage:
-//   openstudio-record [--display N | --window NAME | --area x,y,w,h]
+//   retake [--display N | --window NAME | --area x,y,w,h]
 //                     [--fps 60] [--webcam] [--mic] [--keys]
 //                     [--no-system-audio] [--out DIR] [--list]
 //   Stop with Ctrl+C in the terminal, or ⌃⎋ (Control+Escape) from anywhere.
@@ -52,7 +52,7 @@ func parseArgs() -> Options {
         case "--out":     o.outDir = it.next()
         case "-h", "--help":
             print("""
-            openstudio-record [options]
+            retake [options]
               --display N        record display N (0 = main; default)
               --window NAME      record a single window (matches app/title, case-insensitive)
               --area x,y,w,h     record a region of the display (points, from top-left)
@@ -64,7 +64,7 @@ func parseArgs() -> Options {
                                  display in the editor). Off by default — without this flag
                                  only key *timings* are logged, never the keys themselves.
               --no-system-audio  don't capture system/app audio
-              --out DIR          output folder (default ~/Desktop/OpenStudio/<timestamp>.osrec)
+              --out DIR          output folder (default ~/Desktop/Retake/<timestamp>.take)
             Stop with Ctrl+C, or ⌃⎋ (Control+Escape) from any app.
             Tip: don't move the window during a --window recording — the cursor
             is logged against the window's starting position.
@@ -279,7 +279,7 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         }
 
         // Start the writer BEFORE capture — frames can arrive immediately.
-        guard writer.startWriting() else { throw writer.error ?? NSError(domain: "openstudio", code: 1) }
+        guard writer.startWriting() else { throw writer.error ?? NSError(domain: "retake", code: 1) }
 
         let stream = SCStream(filter: filter, configuration: cfg, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
@@ -502,10 +502,10 @@ struct Main {
 
         // Output bundle
         let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        let name = "\(df.string(from: Date())).osrec"
+        let name = "\(df.string(from: Date())).take"
         let baseDir = opts.outDir.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
             ?? FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent("Desktop/OpenStudio", isDirectory: true)
+                .appendingPathComponent("Desktop/Retake", isDirectory: true)
         let bundle = baseDir.appendingPathComponent(name, isDirectory: true)
         try? FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
 
@@ -586,7 +586,7 @@ struct Main {
 
         print("""
         ✓ Saved \(bundle.lastPathComponent)
-          Open the editor (openstudio-editor.html) in Chrome and load this folder.
+          Open the editor (retake-editor.html) in Chrome and load this folder.
         """)
         exit(0)
     }

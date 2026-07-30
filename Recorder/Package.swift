@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "openstudio-record",
+    name: "retake",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "openstudio-record",
-            path: "Sources/openstudio-record"
+            name: "retake",
+            path: "Sources/retake"
         )
     ]
 )

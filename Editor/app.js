@@ -1,6 +1,7 @@
-/* OpenStudio Editor — Screen Studio-style compositor
-   Loads an .osrec bundle (screen.mp4 + cursor.json + meta.json [+ webcam.mov])
-   or any plain video, and renders zoom/cursor/framing/webcam effects. */
+/* Retake Editor — Screen Studio-style compositor
+   Loads a .take bundle (screen.mp4 + cursor.json + meta.json [+ webcam.mov]),
+   a legacy .osrec bundle, or any plain video, and renders zoom/cursor/framing/
+   webcam effects. */
 
 // ------------------------------------------------------------------ state
 const $ = id => document.getElementById(id);
@@ -122,7 +123,7 @@ async function loadFromFiles(fileList) {
     const vids = Object.values(files).filter(f => /\.(mp4|mov|webm|m4v)$/i.test(f.name) && !/webcam/i.test(f.name));
     screenFile = vids.sort((a, b) => b.size - a.size)[0] || null;
   }
-  if (!screenFile) { toast('No video found — drop an .osrec folder or a video file.'); return; }
+  if (!screenFile) { toast('No video found — drop a .take folder or a video file.'); return; }
 
   const video = document.createElement('video');
   video.muted = true; video.playsInline = true; video.preload = 'auto';
@@ -169,7 +170,8 @@ async function loadFromFiles(fileList) {
   // restore previous edits for this recording, if any
   let restored = false;
   try {
-    const raw = localStorage.getItem('openstudio:' + S.fileKey);
+    let raw = localStorage.getItem('retake:' + S.fileKey);
+    if (!raw) raw = localStorage.getItem('openstudio:' + S.fileKey);   // pre-rename edits still open
     if (raw) {
       const p = JSON.parse(raw);
       Object.assign(S.set, p.set || {});
@@ -377,7 +379,7 @@ function flushSave() {   // force the autosave write NOW (undo/redo must survive
   if (!S.fileKey) return;
   try {
     const data = JSON.stringify({ v: 2, set: S.set, segs: S.segs, trimIn: S.trimIn, trimOut: S.trimOut, splits: S.splits, cuts: S.cuts });
-    localStorage.setItem('openstudio:' + S.fileKey, data);
+    localStorage.setItem('retake:' + S.fileKey, data);
     lastSaved = data;
   } catch (e) {}
 }
@@ -1551,7 +1553,7 @@ setInterval(() => {
   updateSizeEst();
   try {
     const data = JSON.stringify({ v: 2, set: S.set, segs: S.segs, trimIn: S.trimIn, trimOut: S.trimOut, splits: S.splits, cuts: S.cuts });
-    if (data !== lastSaved) { localStorage.setItem('openstudio:' + S.fileKey, data); lastSaved = data; }
+    if (data !== lastSaved) { localStorage.setItem('retake:' + S.fileKey, data); lastSaved = data; }
   } catch (e) {}
 }, 1500);
 
@@ -1778,7 +1780,7 @@ $('exportBtn').onclick = async () => {
     const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `openstudio-${W}x${H}.mp4`;
+    a.download = `retake-${W}x${H}.mp4`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     toast(`Exported ${W}×${H} MP4 (${(blob.size / 1e6).toFixed(1)} MB).`, 3200, 'ok');
@@ -1833,7 +1835,7 @@ async function exportGif() {
     const blob = new Blob([gif.bytes()], { type: 'image/gif' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `openstudio-${W}x${H}.gif`;
+    a.download = `retake-${W}x${H}.gif`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     toast(`Exported GIF (${(blob.size / 1e6).toFixed(1)} MB @ ${fps} fps).`, 3200, 'ok');
