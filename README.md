@@ -1,5 +1,8 @@
 # Retake — your own Screen Studio
 
+[![tests](https://github.com/tonhaoln/retake/actions/workflows/test.yml/badge.svg)](https://github.com/tonhaoln/retake/actions/workflows/test.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A free, two-part replacement for Screen Studio:
 
 1. **Recorder** (`retake`) — a tiny native macOS tool that records your screen
@@ -16,7 +19,21 @@ you just won't get auto-zoom or the redrawn cursor, since those need the recorde
 
 ---
 
-## One-time setup (about 2 minutes)
+## Install
+
+    curl -fsSL https://raw.githubusercontent.com/tonhaoln/retake/main/install.sh | sh
+
+That downloads the latest release, puts `retake` in `/usr/local/bin` and the
+editor in `~/Applications/Retake`, and stops. [Read the script first](install.sh)
+— it is thirty lines and does nothing else.
+
+The binary is ad-hoc signed, not notarised (a notarised build costs $99/year;
+it happens if the project earns it). Two consequences worth knowing: a tarball
+downloaded in a **browser** gets quarantined by Gatekeeper, while the `curl`
+line above does not, and macOS re-asks for permissions after each update
+because the grants are tied to the signature.
+
+### Or build it yourself (about 2 minutes)
 
 You need Apple's command line tools (free). If you don't have them:
 
@@ -50,6 +67,7 @@ After granting Screen Recording you must quit and reopen the terminal app once.
     retake --list             # show displays and windows
     retake --keys             # ALSO record which keys you press (see below)
     retake --no-system-audio  # skip app/system sound
+    retake --no-notify        # skip the "Saved" notification
     retake --fps 30           # lighter files
 
 Stop with **Ctrl+C** in the terminal — or **⌃⎋ (Control+Escape)** from any app.
@@ -60,9 +78,7 @@ One thing about `--window`: the cursor is logged against the window's starting
 position, so don't move the window mid-recording.
 
 Privacy note: by default the recorder logs *when* keys are pressed but never
-*which* keys — it is not a keylogger, and nothing ever leaves your Mac. The
-`--keys` flag is the explicit opt-in that records actual keys, for the editor's
-on-screen keystroke display. Don't use it while typing passwords.
+*which* keys. Full detail in [Privacy](#privacy) below.
 
 ## Editing
 
@@ -114,6 +130,31 @@ Screen Studio's polish comes from *not* baking the cursor into the recording.
 Retake does the same: the screen is captured cursor-free, the cursor path is
 recorded as data, and the editor re-renders a smoothed, resizable cursor on top —
 which is also why zooming stays tack-sharp on the pointer.
+
+## Privacy
+
+A screen recorder sees everything. That is exactly why this one is worth
+reading rather than trusting.
+
+**Nothing leaves your Mac.** No analytics, no telemetry, no update pings, no
+accounts. The recorder writes files to a folder; the editor is an HTML file
+that runs offline. There is no network code in either half — check for
+yourself, it is one Swift file and one JavaScript file.
+
+**Keystrokes are timings, not keys.** By default `cursor.json` contains
+exactly four things: cursor positions over time, click positions and times,
+the *timestamps* of keypresses, and a flag saying whether click capture
+worked. The timestamps exist so the editor can hold a zoom while you type
+instead of drifting away mid-sentence. Which key you pressed is never
+recorded, never stored, never transmitted.
+
+`--keys` is the explicit opt-in that also records the key labels, so the
+editor can draw the on-screen keystroke overlay. Don't use it while typing
+passwords. The default recording *cannot* contain your keystrokes, which is
+the point: the privacy story survives a mistake.
+
+If you would rather the recorder never watched the keyboard at all, say so in
+an issue and a `--no-input` flag is a short patch away.
 
 ## Troubleshooting
 

@@ -48,6 +48,10 @@ loader keys off bundle contents, never the extension — do not add one).
 6. **Design system (Aurora-hybrid)**: gradient = interactive, everything
    static stays graphite; elevation by luminance (4 surface tokens); one
    spring (300ms), one ease (150ms); nothing animates during playback/export.
+   Two sanctioned exemptions to the gradient rule, decided 2026-07-30: the
+   brand mark (`#logo i`) and the export progress fill. Don't "fix" them.
+   Text tokens must clear 4.5:1 on the surface they land on (`--faint` is the
+   floor at 4.96 on `--s1`); canvas text carries its own hardcoded hexes.
 7. **Undo**: structuredClone snapshots via pushUndo() BEFORE mutations; one
    push per drag (pointerdown); baseline seeded after load (undoReady).
    Any new edit operation must call pushUndo().
