@@ -4049,14 +4049,20 @@ $('cropAspects').querySelectorAll('button').forEach(b => b.addEventListener('cli
   const custom = v === 'custom';
   $('cropCustomRow').style.display = custom ? '' : 'none';
   $('cropCustomHint').style.display = custom ? '' : 'none';
-  if (custom) { $('cropW').focus(); applyCustomRatio(); return; }
+  if (custom) { customBase = { ...S.cropDraft }; $('cropW').focus(); applyCustomRatio(); return; }
+  customBase = null;
   applyCropAspect(v === 'free' ? null : parseFloat(v));
 }));
-// two numeric fields, w : h — an empty field or a ratio outside 0.2–5 changes nothing
+// two numeric fields, w : h — an empty field or a ratio outside 0.2–5 changes nothing.
+// Every keystroke refits from the draft as it was when Custom was clicked, so
+// typing "2" then "21" can't progressively shrink the box.
+let customBase = null;
 const applyCustomRatio = () => {
   const w = parseFloat($('cropW').value), h = parseFloat($('cropH').value);
   const r = w > 0 && h > 0 ? w / h : null;
-  if (r && isFinite(r) && r >= 0.2 && r <= 5) applyCropAspect(r);
+  if (!(r && isFinite(r) && r >= 0.2 && r <= 5)) return;
+  if (customBase) S.cropDraft = { ...customBase };
+  applyCropAspect(r);
 };
 $('cropW').addEventListener('input', applyCustomRatio);
 $('cropH').addEventListener('input', applyCustomRatio);
