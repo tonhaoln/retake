@@ -1,0 +1,39 @@
+Retake bundles the following third-party libraries, inlined into the shipped
+editor file (retake-editor.html) by Editor/build.js. Both are MIT-licensed;
+their permission notices are reproduced below as required.
+
+--------------------------------------------------------------------------
+
+mp4-muxer (bundled build)
+Copyright (c) Vanilagy
+https://github.com/Vanilagy/mp4-muxer
+Licensed under the MIT License.
+
+--------------------------------------------------------------------------
+
+gifenc (bundled build)
+Copyright (c) 2021 Matt DesLauriers
+https://github.com/mattdesl/gifenc
+Licensed under the MIT License.
+
+--------------------------------------------------------------------------
+
+MIT License text (applies to both, with the copyright lines above):
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

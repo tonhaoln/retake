@@ -129,4 +129,12 @@ which is also why zooming stays tack-sharp on the pointer.
   on a Mac); update Chrome.
 - **4K export refuses to start** → try 1440p; some machines cap the hardware encoder.
 
-Everything here is yours — MIT-do-whatever. Enjoy not paying a subscription.
+## Third-party
+
+The editor bundles two MIT-licensed libraries, inlined by the build so the
+shipped file stays a single self-contained HTML document:
+[mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (c) Vanilagy, and
+[gifenc](https://github.com/mattdesl/gifenc) (c) Matt DesLauriers.
+Full notices in [NOTICE](NOTICE).
+
+Everything here is yours — MIT ([LICENSE](LICENSE)). Enjoy not paying a subscription.
