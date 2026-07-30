@@ -2,6 +2,8 @@ import { chromium } from 'playwright';
 import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 import fs from 'fs';
 
+const fails = [];
+const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) fails.push(n); };
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
@@ -11,7 +13,7 @@ await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 
-// ---- 1. spotlight: white feathered glow, no arrow
+// ---- 1. halo cursor render frame
 await page.evaluate(() => {
   pause(); S.set.cursorStyle = 'ring';
   document.getElementById('spotUI').style.display = '';
@@ -33,6 +35,9 @@ const cropState = await page.evaluate(() => ({
   cam: cameraAt(2.6),
 }));
 console.log('CROP:', JSON.stringify(cropState));
+check('crop applied exactly', cropState.crop && cropState.crop.x === 160 && cropState.crop.y === 100 && cropState.crop.w === 800 && cropState.crop.h === 450);
+check('canvas follows crop aspect', Math.abs(cropState.canvas[0] / cropState.canvas[1] - 800 / 450) < 0.01);
+check('camera clamped inside crop', cropState.cam.cx >= 160 && cropState.cam.cx <= 960 && cropState.cam.cy >= 100 && cropState.cam.cy <= 550);
 await page.evaluate(() => seekTo(2.6));
 await page.waitForTimeout(500);
 await page.screenshot({ path: OUT + '/14-cropped.png' });
@@ -45,6 +50,10 @@ const cutState = await page.evaluate(() => {
   return { cuts: S.cuts, outDur: outDuration().toFixed(2), map0: out2src(0).toFixed(2), map1: out2src(1.0).toFixed(2) };
 });
 console.log('CUTS:', JSON.stringify(cutState));
+check('one cut recorded', cutState.cuts.length === 1);
+check('output duration ~3s', Math.abs(+cutState.outDur - 3.0) < 0.2);
+check('out2src(0) maps past the cut', Math.abs(+cutState.map0 - 2.0) < 0.05);
+check('out2src(1) maps to 3s', Math.abs(+cutState.map1 - 3.0) < 0.05);
 await page.waitForTimeout(300);
 await page.screenshot({ path: OUT + '/15-timeline-cut.png' });
 
@@ -54,6 +63,7 @@ await page.click('#exportBtn');
 const download = await dl;
 await download.saveAs(OUT + '/export3.mp4');
 console.log('EXPORTED:', fs.statSync(OUT + '/export3.mp4').size, 'bytes');
+check('cropped export non-trivial', fs.statSync(OUT + '/export3.mp4').size > 30000);
 
 // ---- 5. restore keeps cuts + crop
 await page.reload();
@@ -63,6 +73,10 @@ const restored = await page.evaluate(() => ({
   cuts: S.cuts.length, crop: !!S.set.crop, outDur: outDuration().toFixed(2)
 }));
 console.log('RESTORED:', JSON.stringify(restored));
+check('restore kept the cut', restored.cuts === 1);
+check('restore kept the crop', restored.crop);
+check('restore kept output duration', Math.abs(+restored.outDur - 3.0) < 0.2);
 
 await browser.close();
+if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE5');

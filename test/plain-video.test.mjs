@@ -1,5 +1,9 @@
 import { chromium } from 'playwright';
 import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
+
+const fails = [];
+const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) fails.push(n); };
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
@@ -9,11 +13,16 @@ await page.setInputFiles('#filesInput', FIX + '/screen.mp4');
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 15000 });
 const st = await page.evaluate(() => ({ dur: S.duration.toFixed(1), cursor: !!S.cursor, segs: S.segs.length }));
 console.log('PLAIN VIDEO:', JSON.stringify(st));
-// add a manual zoom via double-click on timeline, then screenshot
+check('duration ~5s', Math.abs(+st.dur - 5) < 0.2);
+check('no cursor data on plain video', st.cursor === false);
+check('no zooms on plain load', st.segs === 0);
+// add a manual zoom via the playhead path, then screenshot
 await page.evaluate(() => { seekTo(2.5); addZoomAt(2.5); });
 await page.waitForTimeout(600);
 const seg = await page.evaluate(() => S.segs[0]);
 console.log('MANUAL SEG:', JSON.stringify(seg));
+check('manual zoom exists around 2.5', !!seg && seg.t0 < 2.5 && seg.t1 > 2.5 && seg.z === 2);
 await page.screenshot({ path: OUT + '/07-plain-video-manual-zoom.png' });
 await browser.close();
+if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE2');

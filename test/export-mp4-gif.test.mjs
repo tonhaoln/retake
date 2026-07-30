@@ -2,6 +2,8 @@ import { chromium } from 'playwright';
 import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 import fs from 'fs';
 
+const fails = [];
+const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) fails.push(n); };
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
@@ -11,6 +13,8 @@ await page.goto(EDITOR_URL);
 
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
+// exports should carry zooms — apply them via the button (the contract)
+await page.click('#autoZoom');
 
 const state = await page.evaluate(() => ({
   segs: S.segs.length,
@@ -21,6 +25,11 @@ const state = await page.evaluate(() => ({
   tick: !!S.tickPCM,
 }));
 console.log('STATE:', JSON.stringify(state));
+check('zooms applied', state.segs >= 1);
+check('mic + system tracks found', state.mic && state.sys);
+check('keystrokes carried (5)', state.keystrokes === 5);
+check('keys row shown', state.keysRowShown);
+check('click tick synthesised', state.tick);
 
 // motion blur frame: t=1.5 is mid zoom-in transition (segment starts ~1.65, TRANS ramps before)
 await page.evaluate(() => { pause(); S.set.clickSnd = true; seekTo(1.45); });
@@ -38,6 +47,7 @@ await page.click('#exportBtn');
 const download = await dl;
 await download.saveAs(OUT + '/export2.mp4');
 console.log('MP4 EXPORTED:', fs.statSync(OUT + '/export2.mp4').size, 'bytes');
+check('mp4 export non-trivial', fs.statSync(OUT + '/export2.mp4').size > 50000);
 
 // GIF export
 await page.selectOption('#exportFmt', 'gif');
@@ -46,6 +56,8 @@ await page.click('#exportBtn');
 const download2 = await dl2;
 await download2.saveAs(OUT + '/export.gif');
 console.log('GIF EXPORTED:', fs.statSync(OUT + '/export.gif').size, 'bytes');
+check('gif export non-trivial', fs.statSync(OUT + '/export.gif').size > 20000);
 
 await browser.close();
+if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE4');

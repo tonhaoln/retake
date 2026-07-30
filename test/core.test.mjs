@@ -3,9 +3,11 @@ import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 import fs from 'fs';
 import path from 'path';
 
+const fails = [];
+const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) fails.push(n); };
 
 const browser = await chromium.launch({
-  
+
   args: ['--enable-gpu-rasterization', '--use-fake-ui-for-media-stream']
 }).catch(async e => {
   console.log('fallback launch:', e.message.split('\n')[0]);
@@ -27,6 +29,8 @@ await page.setInputFiles('#dirInput', files).catch(async e => {
 });
 
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
+// zooms are asserted around the explicit button — the Auto button is the contract
+await page.click('#autoZoom');
 const state1 = await page.evaluate(() => ({
   duration: S.duration.toFixed(2),
   segs: S.segs.map(s => ({ t0: +s.t0.toFixed(2), t1: +s.t1.toFixed(2), x: Math.round(s.x), y: Math.round(s.y), z: s.z })),
@@ -35,6 +39,11 @@ const state1 = await page.evaluate(() => ({
   videoSize: [S.video.videoWidth, S.video.videoHeight],
 }));
 console.log('STATE:', JSON.stringify(state1, null, 1));
+check('duration ~5s', Math.abs(+state1.duration - 5) < 0.2);
+check('auto-zoom created segs', state1.segs.length >= 1);
+check('cursor track built', state1.hasTrack);
+check('webcam detected', state1.hasWebcam);
+check('video is 1280x800', state1.videoSize[0] === 1280 && state1.videoSize[1] === 800);
 
 // frame at t=1 (no zoom)
 await page.evaluate(() => { pause(); seekTo(1.0); });
@@ -49,13 +58,14 @@ await page.screenshot({ path: OUT + '/03-t2.6-zoomed.png' });
 // zoom factor sanity: camera at 2.6 should be > 1
 const cam = await page.evaluate(() => cameraAt(2.6));
 console.log('CAMERA@2.6:', JSON.stringify(cam));
+check('camera zoomed at 2.6', cam.z > 1.2);
 
 // click ripple frame at t=2.05
 await page.evaluate(() => seekTo(2.05));
 await page.waitForTimeout(700);
 await page.screenshot({ path: OUT + '/04-t2.05-ripple.png' });
 
-// select first segment to see aim ring; change cursor to spotlight
+// select first segment to see aim ring; halo cursor
 await page.evaluate(() => { S.selSeg = 0; updateZoomPanel(); S.set.cursorStyle = 'ring'; requestRender(); drawTimeline(); });
 await page.waitForTimeout(400);
 await page.screenshot({ path: OUT + '/05-aim-ring.png' });
@@ -76,7 +86,9 @@ const download = await dl;
 const outFile = OUT + '/export.mp4';
 await download.saveAs(outFile);
 console.log('EXPORTED:', fs.statSync(outFile).size, 'bytes');
+check('mp4 export non-trivial', fs.statSync(outFile).size > 50000);
 await page.screenshot({ path: OUT + '/06-after-export.png' });
 
 await browser.close();
+if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE');

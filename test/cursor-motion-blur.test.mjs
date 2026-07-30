@@ -1,5 +1,10 @@
 import { chromium } from 'playwright';
 import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
+import fs from 'fs';
+
+const fails = [];
+const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) fails.push(n); };
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
@@ -19,11 +24,15 @@ const r = await page.evaluate(() => {
   const dt = 0.02, a = cursorAt(1.0 - dt), b = cursorAt(1.0 + dt);
   const v = Math.hypot(b.x - a.x, b.y - a.y) / (2 * dt);
   seekTo(1.0);
-  return { speed: Math.round(v) };
+  return { speed: Math.round(v), x: Math.round(cursorAt(1.0).x) };
 });
 console.log('flick speed px/s:', r.speed);
+check('flick exceeds the blur threshold', r.speed > 2000);
+check('cursor mid-flick near x=550', Math.abs(r.x - 550) < 40);
 await page.waitForTimeout(600);
 const shot = await page.screenshot({ clip: { x: 60, y: 60, width: 1120, height: 500 } });
-await import('fs').then(fs => fs.default.writeFileSync(OUT + '/19-cursor-blur.png', shot));
+fs.writeFileSync(OUT + '/19-cursor-blur.png', shot);
+check('blur frame captured', fs.statSync(OUT + '/19-cursor-blur.png').size > 5000);
 await browser.close();
+if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE10');
