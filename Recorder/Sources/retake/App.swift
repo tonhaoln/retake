@@ -605,21 +605,22 @@ struct Main {
         // One continuation, three sources: the first signal wins, the rest are
         // swallowed by the guard (a double resume would crash mid-teardown).
         var sigSources: [DispatchSourceSignal] = []
+        for sig in [SIGINT, SIGTERM, SIGHUP] {
+            signal(sig, SIG_IGN)
+            sigSources.append(DispatchSource.makeSignalSource(signal: sig, queue: .main))
+        }
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-            var resumed = false                       // all handlers run on .main
-            for sig in [SIGINT, SIGTERM, SIGHUP] {
-                signal(sig, SIG_IGN)
-                let src = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            var resumed = false                       // every handler runs on .main
+            for src in sigSources {
                 src.setEventHandler {
-                    guard !resumed else { return }
+                    guard !resumed else { return }    // a second signal must not resume twice
                     resumed = true
+                    sigSources.forEach { $0.cancel() }  // cancel before release, or libdispatch traps
                     c.resume()
                 }
                 src.resume()
-                sigSources.append(src)
             }
         }
-        _ = sigSources.count   // keep the sources alive through teardown
 
         print("\n■ Stopping…")
         flushTimer.cancel()
