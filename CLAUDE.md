@@ -38,7 +38,7 @@ loader keys off bundle contents, never the extension — do not add one).
 3. **Single-file editor**: no external deps, fonts, or CDNs. New libs must be
    inlined via build.js.
 4. **Test contract**: element ids (exportBtn, exportFmt, exportQ, exportRes,
-   exportFps, sizeEst, dirInput, timeline, splitBtn, cursorStyle data-v
+   exportFps, sizeEst, dirInput, timeline, splitBtn, cropW/cropH, cursorStyle data-v
    buttons…) and global functions (pause, seekTo, addZoomAt, splitAtPlayhead,
    deleteSelection, undo, cameraAt, outDuration, out2src, enterCropMode…) are
    load-bearing. Keep native <input> elements native (tests drive them with

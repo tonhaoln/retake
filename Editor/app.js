@@ -902,37 +902,24 @@ function applyCropAspect(ratio) {
   }
   requestRender();
 }
-// accepts "21:9", "2.35:1", "16/9", "1.85", "1920x800"
-function parseAspect(str) {
-  const s = (str || '').trim().replace(',', '.');
-  let m = s.match(/^(\d+(?:\.\d+)?)\s*[:\/x×]\s*(\d+(?:\.\d+)?)$/i);
-  let r = null;
-  if (m) r = parseFloat(m[1]) / parseFloat(m[2]);
-  else if (/^\d+(?:\.\d+)?$/.test(s)) r = parseFloat(s);
-  return (r && isFinite(r) && r >= 0.2 && r <= 5) ? r : null;
-}
 $('cropAspects').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   $('cropAspects').querySelectorAll('button').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel');
   const v = b.dataset.v;
   const custom = v === 'custom';
-  $('cropCustom').style.display = custom ? '' : 'none';
+  $('cropCustomRow').style.display = custom ? '' : 'none';
   $('cropCustomHint').style.display = custom ? '' : 'none';
-  if (custom) {
-    $('cropCustom').focus();
-    const r = parseAspect($('cropCustom').value);
-    if (r) applyCropAspect(r);
-    return;
-  }
+  if (custom) { $('cropW').focus(); applyCustomRatio(); return; }
   applyCropAspect(v === 'free' ? null : parseFloat(v));
 }));
-const applyCustomInput = () => {
-  const r = parseAspect($('cropCustom').value);
-  if (r) { applyCropAspect(r); $('cropCustom').style.borderColor = ''; }
-  else if ($('cropCustom').value.trim()) $('cropCustom').style.borderColor = 'var(--danger)';
+// two numeric fields, w : h — an empty field or a ratio outside 0.2–5 changes nothing
+const applyCustomRatio = () => {
+  const w = parseFloat($('cropW').value), h = parseFloat($('cropH').value);
+  const r = w > 0 && h > 0 ? w / h : null;
+  if (r && isFinite(r) && r >= 0.2 && r <= 5) applyCropAspect(r);
 };
-$('cropCustom').addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomInput(); });
-$('cropCustom').addEventListener('change', applyCustomInput);
+$('cropW').addEventListener('input', applyCustomRatio);
+$('cropH').addEventListener('input', applyCustomRatio);
 function loop() {
   if (S.playing && !S.exporting) {
     const t = S.video.currentTime;

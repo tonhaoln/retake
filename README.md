@@ -87,7 +87,7 @@ on-screen keystroke display. Don't use it while typing passwords.
      shape and size.
    - **Audio**: separate microphone and system-audio toggles + volumes, and
      optional click sounds mixed into the export.
-   - **Crop**: Frame → Crop… — drag a box (or snap to 16:9 / 4:3 / 1:1 / 9:16, or type a custom ratio like 21:9)
+   - **Crop**: Frame → Crop… — drag a box (or snap to 16:9 / 4:3 / 1:1 / 9:16, or set a custom ratio like 21 : 9)
      to trim away the dock, menu bar, or anything else. Zooms and the cursor
      follow the crop automatically.
    - **Cut sections**: press ✂ Split (or S) at the playhead, click a piece,

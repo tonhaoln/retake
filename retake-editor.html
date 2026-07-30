@@ -44,10 +44,13 @@ select{
   background:var(--s2); color:var(--text); border:1px solid var(--line);
   border-radius:8px; padding:6px 8px; font:inherit; cursor:pointer;
 }
-input[type=text]{
+input[type=text],input[type=number]{
   background:var(--s2); color:var(--text); border:1px solid var(--line);
   border-radius:8px; padding:6px 9px; font:inherit;
 }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none; margin:0}
+#cropCustomRow input{flex:1; min-width:0; text-align:center}
 
 /* ---- sliders: 3px rail, aurora fill (set inline from JS), 13px thumb ---- */
 input[type=range]{
@@ -272,10 +275,14 @@ label.row .val{
     <div class="seg-btns"><button id="cropBtn"><svg viewBox="0 0 16 16"><path d="M4 1v11h11M1 4h11v11"/></svg>Crop…</button></div>
     <div id="cropUI" style="display:none">
       <div class="seg-btns" id="cropAspects">
-        <button data-v="free" class="sel">Free</button><button data-v="1.77778">16:9</button><button data-v="1.33333">4:3</button><button data-v="1">1:1</button><button data-v="0.5625">9:16</button><button data-v="custom">…</button>
+        <button data-v="free" class="sel">Free</button><button data-v="1.77778">16:9</button><button data-v="1.33333">4:3</button><button data-v="1">1:1</button><button data-v="0.5625">9:16</button><button data-v="custom">Custom</button>
       </div>
-      <input type="text" id="cropCustom" placeholder="e.g. 21:9, 2.35:1 or 1.85" style="display:none; width:100%; margin:2px 0 6px">
-      <div class="hint" id="cropCustomHint" style="display:none">Type a ratio and press Enter.</div>
+      <div class="seg-btns" id="cropCustomRow" style="display:none">
+        <input type="number" id="cropW" min="0.1" step="0.01" placeholder="16">
+        <span style="align-self:center; color:var(--faint)">:</span>
+        <input type="number" id="cropH" min="0.1" step="0.01" placeholder="9">
+      </div>
+      <div class="hint" id="cropCustomHint" style="display:none">Width : height — decimals are fine (2.35 : 1).</div>
       <div class="seg-btns">
         <button id="cropApply" class="primary">Apply</button>
         <button id="cropReset">Reset</button>
@@ -4035,37 +4042,24 @@ function applyCropAspect(ratio) {
   }
   requestRender();
 }
-// accepts "21:9", "2.35:1", "16/9", "1.85", "1920x800"
-function parseAspect(str) {
-  const s = (str || '').trim().replace(',', '.');
-  let m = s.match(/^(\d+(?:\.\d+)?)\s*[:\/x×]\s*(\d+(?:\.\d+)?)$/i);
-  let r = null;
-  if (m) r = parseFloat(m[1]) / parseFloat(m[2]);
-  else if (/^\d+(?:\.\d+)?$/.test(s)) r = parseFloat(s);
-  return (r && isFinite(r) && r >= 0.2 && r <= 5) ? r : null;
-}
 $('cropAspects').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   $('cropAspects').querySelectorAll('button').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel');
   const v = b.dataset.v;
   const custom = v === 'custom';
-  $('cropCustom').style.display = custom ? '' : 'none';
+  $('cropCustomRow').style.display = custom ? '' : 'none';
   $('cropCustomHint').style.display = custom ? '' : 'none';
-  if (custom) {
-    $('cropCustom').focus();
-    const r = parseAspect($('cropCustom').value);
-    if (r) applyCropAspect(r);
-    return;
-  }
+  if (custom) { $('cropW').focus(); applyCustomRatio(); return; }
   applyCropAspect(v === 'free' ? null : parseFloat(v));
 }));
-const applyCustomInput = () => {
-  const r = parseAspect($('cropCustom').value);
-  if (r) { applyCropAspect(r); $('cropCustom').style.borderColor = ''; }
-  else if ($('cropCustom').value.trim()) $('cropCustom').style.borderColor = 'var(--danger)';
+// two numeric fields, w : h — an empty field or a ratio outside 0.2–5 changes nothing
+const applyCustomRatio = () => {
+  const w = parseFloat($('cropW').value), h = parseFloat($('cropH').value);
+  const r = w > 0 && h > 0 ? w / h : null;
+  if (r && isFinite(r) && r >= 0.2 && r <= 5) applyCropAspect(r);
 };
-$('cropCustom').addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomInput(); });
-$('cropCustom').addEventListener('change', applyCustomInput);
+$('cropW').addEventListener('input', applyCustomRatio);
+$('cropH').addEventListener('input', applyCustomRatio);
 function loop() {
   if (S.playing && !S.exporting) {
     const t = S.video.currentTime;

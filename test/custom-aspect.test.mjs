@@ -11,26 +11,25 @@ await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 await page.evaluate(() => enterCropMode());
-// click Custom, type 21:9, Enter
+// click Custom, set 21 : 9 via the two ratio fields
 await page.click('#cropAspects button[data-v="custom"]');
-await page.fill('#cropCustom', '21:9');
-await page.press('#cropCustom', 'Enter');
+await page.fill('#cropW', '21');
+await page.fill('#cropH', '9');
 const r1 = await page.evaluate(() => ({ aspect: S.cropAspect.toFixed(4), ratio: (S.cropDraft.w / S.cropDraft.h).toFixed(4) }));
 console.log('21:9 →', JSON.stringify(r1));
 check('21:9 sets aspect 2.3333', Math.abs(+r1.aspect - 21 / 9) < 0.001);
 check('draft follows 21:9', Math.abs(+r1.ratio - 21 / 9) < 0.001);
 // decimal form
-await page.fill('#cropCustom', '2.35:1');
-await page.press('#cropCustom', 'Enter');
+await page.fill('#cropW', '2.35');
+await page.fill('#cropH', '1');
 const r2 = await page.evaluate(() => (S.cropDraft.w / S.cropDraft.h).toFixed(3));
 console.log('2.35:1 → draft ratio', r2);
 check('2.35:1 accepted', Math.abs(+r2 - 2.35) < 0.005);
-// invalid input marks the field, doesn't change aspect
-await page.fill('#cropCustom', 'banana');
-await page.press('#cropCustom', 'Enter');
+// an emptied field changes nothing
+await page.fill('#cropH', '');
 const r3 = await page.evaluate(() => S.cropAspect.toFixed(3));
-console.log('after invalid, aspect still', r3);
-check('invalid input ignored', Math.abs(+r3 - 2.35) < 0.005);
+console.log('after emptied field, aspect still', r3);
+check('empty field ignored', Math.abs(+r3 - 2.35) < 0.005);
 // apply and verify export dims follow
 await page.evaluate(() => exitCropMode(true));
 const dims = await page.evaluate(() => exportDims());
