@@ -3264,7 +3264,7 @@ async function loadFromFiles(fileList) {
   await new Promise((res, rej) => {
     video.onloadedmetadata = res;
     video.onerror = () => rej(new Error('Could not decode ' + screenFile.name));
-  }).catch(e => { toast(e.message); throw e; });
+  }).catch(e => { URL.revokeObjectURL(video.src); toast(e.message); throw e; });
 
   // webcam / audio side-files
   let webcam = null, webcamOffset = 0, micFile = null, micEl = null, sysFile = null;
@@ -3275,7 +3275,7 @@ async function loadFromFiles(fileList) {
     webcam.muted = true; webcam.playsInline = true; webcam.preload = 'auto';
     webcam.src = URL.createObjectURL(files[camName]);
     const ok = await new Promise(res => { webcam.onloadedmetadata = () => res(true); webcam.onerror = () => res(false); });
-    if (!ok) { toast('Webcam file could not be decoded — continuing without it.'); webcam = null; }
+    if (!ok) { URL.revokeObjectURL(webcam.src); toast('Webcam file could not be decoded — continuing without it.'); webcam = null; }
     else { webcamOffset = (meta && meta.webcamOffset) || 0; micFile = files[camName]; micEl = webcam; }
   }
   if (!micFile && files[audName]) {
@@ -3287,8 +3287,10 @@ async function loadFromFiles(fileList) {
   // system audio lives inside screen.mp4 (recorded bundles) or the video's own track (plain videos)
   if ((meta && meta.systemAudio) || !meta) sysFile = screenFile;
 
-  // commit state
-  if (S.video) { URL.revokeObjectURL(S.video.src); }
+  // commit state (revoke every previous object URL — each pins a file in memory)
+  if (S.video) URL.revokeObjectURL(S.video.src);
+  if (S.webcam) URL.revokeObjectURL(S.webcam.src);
+  if (S.micEl && S.micEl !== S.webcam) URL.revokeObjectURL(S.micEl.src);
   S.video = video; S.webcam = webcam; S.webcamOffset = webcamOffset;
   S.micFile = micFile; S.micEl = micEl; S.sysFile = sysFile;
   S.meta = meta; S.cursor = cursor;
@@ -4296,7 +4298,7 @@ function drawTimeline() {
 // timeline interactions
 let tlDrag = null;
 tl.addEventListener('pointerdown', e => {
-  if (!S.loaded || S.cropMode) return;
+  if (!S.loaded || S.cropMode || S.exporting) return;   // a scrub mid-export injects wrong frames
   tl.setPointerCapture(e.pointerId);
   const x = e.offsetX, y = e.offsetY, t = X2T(x);
   // trim handles first
@@ -4515,8 +4517,9 @@ bindRange('curSize', 'curSize', v => v.toFixed(1) + '×');
 bindRange('curSmooth', 'curSmooth', v => v + '', () => { if (S.loaded) buildTrack(); });
 bindRange('camSize', 'camSize', v => v + '%');
 // zoom timing — re-run auto-zoom live (manual zooms are preserved)
-let regenT = null;
+let regenT = null, syncing = false;   // syncing: restoring a project must never regenerate autos
 function regenAuto() {
+  if (syncing) return;                // slider events fired by syncUIFromSettings are not user edits
   clearTimeout(regenT);
   regenT = setTimeout(() => {
     if (S.loaded && S.cursor && (S.cursor.clicks || []).length) autoZoomFromClicks(true);
@@ -4555,6 +4558,7 @@ $('bgImgInput').onchange = e => {
   if (!f) return;
   const img = new Image();
   img.onload = () => {
+    URL.revokeObjectURL(img.src);   // decoded bitmap survives; the URL would leak per pick
     S.bgImg = img; S.set.bg = -1;
     document.querySelectorAll('#bgSwatches .swatch').forEach(x => x.classList.remove('sel'));
     $('bgImgHint').style.display = '';
@@ -4594,14 +4598,11 @@ $('autoZoom').onclick = () => {
   autoZoomFromClicks();
 };
 $('addZoom').onclick = () => { if (S.loaded) addZoomAt(S.video.currentTime); };
-$('delZoom').onclick = () => {
-  if (S.selSeg < 0) return;
-  S.segs.splice(S.selSeg, 1); S.selSeg = -1;
-  updateZoomPanel(); drawTimeline(); requestRender();
-};
+$('delZoom').onclick = () => { if (S.selSeg >= 0) deleteSelection(); };   // one path, one pushUndo
 
 // sync every control to S.set (used after restoring a saved project)
 function syncUIFromSettings() {
+  syncing = true;
   const ranges = {
     pad: 'pad', radius: 'radius', shadow: 'shadow', curSize: 'curSize',
     curSmooth: 'curSmooth', camSize: 'camSize', micVol: 'micVol', sysVol: 'sysVol',
@@ -4631,6 +4632,7 @@ function syncUIFromSettings() {
   document.querySelectorAll('#bgSwatches .swatch').forEach((el, i) =>
     el.classList.toggle('sel', i === S.set.bg));
   updateZoomPanel(); drawTimeline(); requestRender();
+  syncing = false;
 }
 
 // ---- autosave (per recording, in this browser) + export size estimate
@@ -4809,7 +4811,7 @@ $('exportBtn').onclick = async () => {
     fastStart: 'in-memory'
   });
 
-  let encodeError = null;
+  let encodeError = null, aenc = null;
   const venc = new VideoEncoder({
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
     error: e => { encodeError = e; }
@@ -4852,7 +4854,7 @@ $('exportBtn').onclick = async () => {
     if (aCodec) {
       $('exportLabel').textContent = 'Encoding audio…';
       await new Promise(r => setTimeout(r, 0));
-      const aenc = new AudioEncoder({
+      aenc = new AudioEncoder({
         output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
         error: e => console.warn('audio enc', e)
       });
@@ -4904,7 +4906,6 @@ $('exportBtn').onclick = async () => {
         while (aenc.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 4));
       }
       await aenc.flush();
-      aenc.close();
     } else if (wantAudio) {
       toast('Audio encoding not available in this browser — exported without audio.');
     }
@@ -4922,6 +4923,7 @@ $('exportBtn').onclick = async () => {
     else toast('Export cancelled.');
   } finally {
     try { venc.close(); } catch (e) {}
+    try { if (aenc) aenc.close(); } catch (e) {}
     S.exporting = false;
     $('exportProgress').style.display = 'none';
     $('exportBtn').disabled = false;
