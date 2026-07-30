@@ -192,8 +192,8 @@ async function loadFromFiles(fileList) {
   } catch (e) {}
 
   buildTrack();
-  if (restored) { syncUIFromSettings(); }
-  else if (cursor && cursor.clicks && cursor.clicks.length) autoZoomFromClicks();
+  if (restored) syncUIFromSettings();
+  // auto-zoom is opt-in: loading never creates zooms, the Auto button does
 
   // UI
   $('dropHint').classList.add('hidden');
@@ -219,9 +219,10 @@ async function loadFromFiles(fileList) {
   if (restored) toast('Welcome back — restored your previous edits for this recording.');
   else {
     const bits = [`${video.videoWidth}×${video.videoHeight}`, fmtT(video.duration)];
-    if (cursor) bits.push(`${(cursor.clicks || []).filter(c => c.down).length} clicks`);
+    const nClicks = cursor ? (cursor.clicks || []).filter(c => c.down).length : 0;
+    if (cursor) bits.push(`${nClicks} click${nClicks === 1 ? '' : 's'}`);
     if (webcam) bits.push('webcam');
-    toast('Loaded — ' + bits.join(' · '));
+    toast('Loaded — ' + bits.join(' · ') + (nClicks ? '. Auto can zoom your clicks.' : ''), nClicks ? 4500 : 3200);
   }
 }
 
@@ -1389,7 +1390,9 @@ function regenAuto() {
   if (syncing) return;                // slider events fired by syncUIFromSettings are not user edits
   clearTimeout(regenT);
   regenT = setTimeout(() => {
-    if (S.loaded && S.cursor && (S.cursor.clicks || []).length) autoZoomFromClicks(true);
+    // only regenerate zooms the user explicitly asked for (Auto pressed) —
+    // never conjure them from a timing tweak alone
+    if (S.loaded && S.cursor && (S.cursor.clicks || []).length && S.segs.some(s => s.auto)) autoZoomFromClicks(true);
   }, 200);
 }
 bindRange('zLead', 'zoomLead', v => v.toFixed(2) + 's', regenAuto);

@@ -11,8 +11,9 @@ await page.waitForFunction(() => !document.getElementById('exportBtn').disabled,
 const r = await page.evaluate(() => {
   const out = {};
   pause();
-  const seg0 = S.segs.length;                       // auto-zoom baseline (1)
   out.baselineUndoEmpty = undoStack.length === 0;   // load must not be undoable
+  autoZoomFromClicks();                             // zooms are opt-in — apply explicitly
+  const seg0 = S.segs.length;                       // auto-zoom baseline (1)
 
   // 1. split + delete piece, then undo both
   seekTo(2.0); splitAtPlayhead();
