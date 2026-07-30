@@ -848,9 +848,18 @@ function drawCropUI() {
   for (const [hx, hy] of cropHandles(dx, dy, dw, dh)) {
     ctx.beginPath(); ctx.arc(hx, hy, 6, 0, 7); ctx.fill();
   }
-  // size label
-  ctx.font = '600 12px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText(`${Math.round(d.w)} × ${Math.round(d.h)}`, dx + 8, dy + 18);
+  // size label on a plate — white text alone disappears over light content
+  const label = `${Math.round(d.w)} × ${Math.round(d.h)}`;
+  ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif';
+  const lw = ctx.measureText(label).width + 16, lh = 22;
+  const lx = clamp(dx + 10, ox + 4, ox + fvw * sc - lw - 4);
+  const ly = clamp(dy + 10, oy + 4, oy + fvh * sc - lh - 4);
+  roundRectPath(ctx, lx, ly, lw, lh, 6);
+  ctx.fillStyle = 'rgba(10,11,14,0.74)'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, lx + 8, ly + lh / 2);
+  ctx.textBaseline = 'alphabetic';
 }
 function cropHandles(x, y, w, h) {
   return [[x, y], [x + w / 2, y], [x + w, y], [x + w, y + h / 2],
@@ -865,6 +874,7 @@ function enterCropMode() {
   S.cropMode = true;
   $('cropUI').style.display = '';
   $('cropBtn').style.display = 'none';
+  $('side').classList.add('cropping');   // one mode at a time
   $('cropAspects').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.v === 'free'));
   fitPreviewCanvas();
   requestRender();
@@ -881,6 +891,7 @@ function exitCropMode(apply) {
   S.cropMode = false;
   $('cropUI').style.display = 'none';
   $('cropBtn').style.display = '';
+  $('side').classList.remove('cropping');
   $('cropInfo').style.display = S.set.crop ? '' : 'none';
   if (S.set.crop) $('cropInfo').textContent = `Cropped to ${S.set.crop.w}×${S.set.crop.h} — Crop… to change.`;
   fitPreviewCanvas();
@@ -1000,12 +1011,18 @@ function play() {
   if (S.video.currentTime >= S.trimOut - 0.01) seekTo(S.trimIn);
   applyAudioPrefs();
   prevTickT = S.video.currentTime;
-  S.playing = true; $('playBtn').classList.add('playing');
+  S.playing = true;
+  $('playBtn').classList.add('playing');
+  $('playBtn').setAttribute('aria-pressed', 'true');
+  $('playBtn').setAttribute('aria-label', 'Pause');
   S.video.play().catch(() => {});
   syncWebcamSoft();
 }
 function pause() {
-  S.playing = false; $('playBtn').classList.remove('playing');
+  S.playing = false;
+  $('playBtn').classList.remove('playing');
+  $('playBtn').setAttribute('aria-pressed', 'false');
+  $('playBtn').setAttribute('aria-label', 'Play');
   S.video.pause();
   if (S.webcam) S.webcam.pause();
   if (S.micEl && S.micEl !== S.webcam) S.micEl.pause();
@@ -1051,7 +1068,7 @@ function drawTimeline() {
   const W = tl.clientWidth, H = 84;
   tctx.clearRect(0, 0, W, H);
   if (!S.loaded) {
-    tctx.fillStyle = '#5a6172'; tctx.font = '12px sans-serif';
+    tctx.fillStyle = '#8b94a8'; tctx.font = '12px sans-serif';
     tctx.fillText('Open a recording to see the timeline.', 12, 46);
     return;
   }
@@ -1061,7 +1078,7 @@ function drawTimeline() {
   tctx.fillRect(T2X(S.trimOut), 0, W - T2X(S.trimOut), H);
 
   // ruler
-  tctx.strokeStyle = '#343b49'; tctx.fillStyle = '#78819a'; tctx.font = '10px sans-serif';
+  tctx.strokeStyle = '#343b49'; tctx.fillStyle = '#8b94a8'; tctx.font = '10px sans-serif';
   const step = S.duration > 90 ? 15 : S.duration > 30 ? 5 : 1;
   for (let t = 0; t <= S.duration; t += step) {
     const x = T2X(t);
@@ -1074,7 +1091,9 @@ function drawTimeline() {
   ps.forEach((p, i) => {
     const x0 = T2X(p.t0), x1 = T2X(p.t1);
     roundRectPath(tctx, x0 + 0.5, VID_Y, Math.max(x1 - x0 - 1, 3), VID_H, 4);
-    tctx.fillStyle = i === S.selPiece ? '#3f4c68' : '#2c3346';
+    // the footage is the primary object: the lane reads at the same weight as
+    // an unselected zoom segment (~3:1), never below it
+    tctx.fillStyle = i === S.selPiece ? '#7683a8' : '#5c6789';
     tctx.fill();
     if (i === S.selPiece) { tctx.strokeStyle = '#fff'; tctx.lineWidth = 1.4; tctx.stroke(); }
   });
@@ -1518,10 +1537,16 @@ function updateSizeEst() {
   $('popEst').textContent = `${W}×${H} · estimated ≈ ${size}`;
 }
 // export settings popover (the one Glasshouse moment)
-function closePopover() { $('exportPop').classList.remove('open'); }
+// inert tracks .open: a popover hidden by opacity is still tabbable without it
+function setPopover(open) {
+  $('exportPop').classList.toggle('open', open);
+  $('exportPop').inert = !open;
+  $('exportChip').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closePopover() { setPopover(false); }
 $('exportChip').addEventListener('click', e => {
   e.stopPropagation();
-  $('exportPop').classList.toggle('open');
+  setPopover(!$('exportPop').classList.contains('open'));
 });
 $('exportPop').addEventListener('click', e => e.stopPropagation());
 document.addEventListener('click', () => closePopover());
@@ -1540,13 +1565,15 @@ setInterval(() => {
   } catch (e) {}
 }, 1500);
 
-// background swatches
+// background swatches (real buttons: focusable and named for screen readers)
 (function () {
   const box = $('bgSwatches');
   BGS.forEach((bg, i) => {
-    const d = document.createElement('div');
+    const d = document.createElement('button');
+    d.type = 'button';
     d.className = 'swatch' + (i === S.set.bg ? ' sel' : '');
     d.title = bg.n;
+    d.setAttribute('aria-label', bg.n + ' background');
     d.style.background = `linear-gradient(135deg, ${bg.s.join(',')})`;
     d.onclick = () => {
       box.querySelectorAll('.swatch').forEach(x => x.classList.remove('sel'));
@@ -1837,3 +1864,4 @@ async function exportGif() {
 // ------------------------------------------------------------------ init
 sizeTimeline();
 drawTimeline();
+updateSizeEst();   // the chip states its defaults before anything is loaded

@@ -49,8 +49,10 @@ await download.saveAs(OUT + '/export2.mp4');
 console.log('MP4 EXPORTED:', fs.statSync(OUT + '/export2.mp4').size, 'bytes');
 check('mp4 export non-trivial', fs.statSync(OUT + '/export2.mp4').size > 50000);
 
-// GIF export
+// GIF export — through the real user path: the popover must be open
+await page.click('#exportChip');
 await page.selectOption('#exportFmt', 'gif');
+await page.keyboard.press('Escape');
 const dl2 = page.waitForEvent('download', { timeout: 300000 });
 await page.click('#exportBtn');
 const download2 = await dl2;
