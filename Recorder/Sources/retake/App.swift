@@ -211,7 +211,14 @@ final class CursorLogger {
         }
         root["clicksCaptured"] = tapWorked
         let data = try JSONSerialization.data(withJSONObject: root)
-        try data.write(to: url)
+        try data.write(to: url, options: .atomic)   // kill-mid-flush must never leave truncated JSON
+    }
+
+    private var warnedWriteFailure = false
+    func reportWriteFailureOnce(_ error: Error) {
+        guard !warnedWriteFailure else { return }
+        warnedWriteFailure = true
+        fputs("⚠️  Could not write cursor.json: \(error.localizedDescription)\n", stderr)
     }
 }
 
@@ -514,6 +521,31 @@ struct Main {
         let bundle = baseDir.appendingPathComponent(name, isDirectory: true)
         try? FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
 
+        // meta.json is written at START (and again, with webcam fields, at stop):
+        // a crash-recovered bundle must still open as a real recording — without
+        // meta the editor falls back to plain-video and cursor coordinates lose
+        // their point-to-pixel scale.
+        func writeMeta(cameraFile: String?, webcamOffset: Double?) {
+            var meta: [String: Any] = [
+                "version": 2,
+                "screen": "screen.mp4",
+                "cursor": "cursor.json",
+                "pointWidth": pointW,
+                "pointHeight": pointH,
+                "pixelWidth": pixelW,
+                "pixelHeight": pixelH,
+                "fps": opts.fps,
+                "systemAudio": opts.systemAudio,
+                "capture": captureMeta
+            ]
+            if let cameraFile { meta[opts.webcam ? "webcam" : "audio"] = cameraFile }
+            if let webcamOffset { meta["webcamOffset"] = webcamOffset }
+            if let data = try? JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted]) {
+                try? data.write(to: bundle.appendingPathComponent("meta.json"), options: .atomic)
+            }
+        }
+        writeMeta(cameraFile: nil, webcamOffset: nil)
+
         // Start everything
         let cursor = CursorLogger(origin: cursorOrigin, captureKeys: opts.keys)
         cursor.onHotkey = { kill(getpid(), SIGINT) }
@@ -531,6 +563,18 @@ struct Main {
             fputs("   Check Screen Recording permission for your terminal app.\n", stderr)
             exit(1)
         }
+
+        // Crash safety: flush cursor data every 5s once the video clock exists —
+        // a dead process loses seconds of pointer data, not the session.
+        let flushTimer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        flushTimer.schedule(deadline: .now() + 5, repeating: 5)
+        flushTimer.setEventHandler {
+            let start = screen.firstFrameTime
+            guard start > 0 else { return }
+            do { try cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: start) }
+            catch { cursor.reportWriteFailureOnce(error) }
+        }
+        flushTimer.resume()
 
         var camera: CameraRecorder? = nil
         var cameraFile: String? = nil
@@ -574,33 +618,17 @@ struct Main {
         _ = sigSources.count   // keep the sources alive through teardown
 
         print("\n■ Stopping…")
+        flushTimer.cancel()
         cursor.stop()
         await camera?.stop()
         await screen.finish()
 
-        // Metadata + cursor data (timestamps relative to first video frame)
+        // Final cursor data + metadata (timestamps relative to first video frame)
         let videoStart = screen.firstFrameTime
-        try? cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: videoStart)
-
-        var meta: [String: Any] = [
-            "version": 2,
-            "screen": "screen.mp4",
-            "cursor": "cursor.json",
-            "pointWidth": pointW,
-            "pointHeight": pointH,
-            "pixelWidth": pixelW,
-            "pixelHeight": pixelH,
-            "fps": opts.fps,
-            "systemAudio": opts.systemAudio,
-            "capture": captureMeta
-        ]
-        if let cameraFile, let camera {
-            meta[opts.webcam ? "webcam" : "audio"] = cameraFile
-            meta["webcamOffset"] = (camera.startedAt - videoStart).rounded(toPlaces: 4)
-        }
-        if let data = try? JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted]) {
-            try? data.write(to: bundle.appendingPathComponent("meta.json"))
-        }
+        do { try cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: videoStart) }
+        catch { cursor.reportWriteFailureOnce(error) }
+        writeMeta(cameraFile: cameraFile,
+                  webcamOffset: camera.map { ($0.startedAt - videoStart).rounded(toPlaces: 4) })
 
         if screen.droppedFrames > 0 {
             print("⚠️  \(screen.droppedFrames) frame\(screen.droppedFrames == 1 ? "" : "s") dropped (encoder back-pressure) — a lower --fps helps.")
