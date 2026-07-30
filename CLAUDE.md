@@ -1,8 +1,10 @@
-# CLAUDE.md — OpenStudio
+# CLAUDE.md — Retake
 
 Open source Screen Studio alternative. Two parts: a native macOS recorder
 (Swift CLI) and a one-file browser editor (canvas compositor + WebCodecs).
-**Working name only — rename pending (collides with NREL's OpenStudio).**
+Named 2026-07-30 ("Record once. Retake forever."). The code rename is not
+yet executed: files, the binary and the `.osrec` bundle extension still carry
+the old working name. That rename is the next scheduled job.
 
 ## Layout
 
