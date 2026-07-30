@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
+await page.goto('file://<repo>/Editor/dist-openstudio-editor.html');
+await page.setInputFiles('#dirInput', '<repo>/test/fixture.osrec');
+await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
+await page.evaluate(() => { pause(); seekTo(1.0); });
+await page.waitForTimeout(600);
+await page.screenshot({ path: 'out/34-final.png', clip: { x: 1230, y: 0, width: 270, height: 950 } });
+await browser.close();
+console.log('OK');

@@ -1,0 +1,11 @@
+{
+  "name": "openstudio-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "for t in test.mjs test2.mjs test3.mjs test4.mjs test5.mjs test6.mjs test7.mjs test9.mjs test10.mjs test11.mjs test12.mjs; do echo \"### $t\"; node $t || exit 1; done"
+  },
+  "devDependencies": {
+    "playwright": "^1.50.0"
+  }
+}
