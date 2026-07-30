@@ -1,0 +1,40 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  macos-arm64:
+    name: Build and publish the recorder
+    runs-on: macos-14          # Apple silicon
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the recorder
+        run: swift build -c release --package-path Recorder
+
+      - name: Build the editor
+        run: node Editor/build.js
+
+      - name: Stage the release
+        run: |
+          mkdir -p dist
+          cp Recorder/.build/release/retake dist/
+          cp Editor/dist-retake-editor.html dist/retake-editor.html
+          tar -czf retake-macos-arm64.tar.gz -C dist retake retake-editor.html
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: retake-macos-arm64.tar.gz
+          body: |
+            Apple silicon build. Install with:
+
+                curl -fsSL https://raw.githubusercontent.com/tonhaoln/retake/main/install.sh | sh
+
+            The binary is ad-hoc signed, not notarised. Downloading the tarball
+            in a browser gets it quarantined by Gatekeeper; the installer above
+            (curl) does not. Screen Recording and Accessibility permissions are
+            tied to the signature, so macOS asks again after each update.
