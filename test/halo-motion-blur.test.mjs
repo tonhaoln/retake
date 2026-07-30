@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
+import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
-await page.goto('file://<repo>/Editor/dist-openstudio-editor.html');
-await page.setInputFiles('#dirInput', '<repo>/test/fixture.osrec');
+await page.goto(EDITOR_URL);
+await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 await page.evaluate(() => {
   pause();
@@ -16,6 +17,6 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(600);
 const shot = await page.screenshot({ clip: { x: 120, y: 120, width: 900, height: 380 } });
-await import('fs').then(fs => fs.default.writeFileSync('<repo>/test/out/21-halo-blur-fixed.png', shot));
+await import('fs').then(fs => fs.default.writeFileSync(OUT + '/21-halo-blur-fixed.png', shot));
 await browser.close();
 console.log('DONE11');

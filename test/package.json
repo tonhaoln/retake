@@ -1,9 +1,9 @@
 {
-  "name": "openstudio-tests",
+  "name": "retake-tests",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "for t in test.mjs test2.mjs test3.mjs test4.mjs test5.mjs test6.mjs test7.mjs test9.mjs test10.mjs test11.mjs test12.mjs; do echo \"### $t\"; node $t || exit 1; done"
+    "test": "for t in core.test.mjs plain-video.test.mjs autosave-restore.test.mjs export-mp4-gif.test.mjs crop.test.mjs custom-aspect.test.mjs cursor-styles.test.mjs idle-fade.test.mjs cursor-motion-blur.test.mjs halo-motion-blur.test.mjs undo.test.mjs; do echo \"### $t\"; node $t || exit 1; done"
   },
   "devDependencies": {
     "playwright": "^1.50.0"

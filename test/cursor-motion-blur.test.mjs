@@ -1,9 +1,10 @@
 import { chromium } from 'playwright';
+import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
-await page.goto('file://<repo>/Editor/dist-openstudio-editor.html');
-await page.setInputFiles('#dirInput', '<repo>/test/fixture.osrec');
+await page.goto(EDITOR_URL);
+await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 // fixture cursor peaks ~230 px/s — inject a fast synthetic flick to exercise the blur
 const r = await page.evaluate(() => {
@@ -23,6 +24,6 @@ const r = await page.evaluate(() => {
 console.log('flick speed px/s:', r.speed);
 await page.waitForTimeout(600);
 const shot = await page.screenshot({ clip: { x: 60, y: 60, width: 1120, height: 500 } });
-await import('fs').then(fs => fs.default.writeFileSync('<repo>/test/out/19-cursor-blur.png', shot));
+await import('fs').then(fs => fs.default.writeFileSync(OUT + '/19-cursor-blur.png', shot));
 await browser.close();
 console.log('DONE10');

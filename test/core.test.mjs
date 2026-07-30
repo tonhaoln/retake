@@ -1,11 +1,8 @@
 import { chromium } from 'playwright';
+import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 import fs from 'fs';
 import path from 'path';
 
-const EDITOR = '<repo>/Editor/dist-openstudio-editor.html';
-const FIX = '<repo>/test/fixture.osrec';
-const OUT = '<repo>/test/out';
-fs.mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({
   

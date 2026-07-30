@@ -1,14 +1,13 @@
 import { chromium } from 'playwright';
+import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 import fs from 'fs';
 
-const FIX = '<repo>/test/fixture.osrec';
-const OUT = '<repo>/test/out';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
 page.on('console', m => { if (m.type() === 'error') console.log('PAGE ERROR:', m.text()); });
-await page.goto('file://<repo>/Editor/dist-openstudio-editor.html');
+await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 

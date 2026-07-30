@@ -1,13 +1,15 @@
 # Test suite
 
-Playwright end-to-end tests against the BUILT editor (Editor/dist-openstudio-editor.html).
+Playwright end-to-end tests against the BUILT editor (`Editor/dist-retake-editor.html`).
 
     npm install
     node ../Editor/build.js   # ALWAYS build before testing (runs from any cwd)
-    npm test                  # or: node test12.mjs etc.
+    npm test                  # or a single gate: node undo.test.mjs
 
 Tests use Playwright's own Chromium: run `npx playwright install chromium` once.
-Known limitation: the tests carry absolute paths to this machine's checkout, so a
-clean checkout elsewhere needs them made relative first. Fixture is VP9/Opus because
-Playwright's Chromium lacks H.264/AAC; regenerate with ./make-fixture.sh.
-test8/shot-*.mjs are screenshot helpers, not gates.
+All paths resolve through `paths.mjs`, so the suite runs on any checkout.
+The fixture is VP9/Opus because Playwright's Chromium lacks H.264/AAC (the
+editor has codec fallbacks); regenerate it with `./make-fixture.sh`.
+
+`*.test.mjs` files are gates — `npm test` runs them all and stops on the first
+failure. `shot-*.mjs` files are screenshot helpers, not gates.

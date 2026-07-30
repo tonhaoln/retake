@@ -1,9 +1,10 @@
 import { chromium } from 'playwright';
+import { EDITOR, EDITOR_URL, FIX, OUT } from './paths.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
-await page.goto('file://<repo>/Editor/dist-openstudio-editor.html');
-await page.setInputFiles('#dirInput', '<repo>/test/fixture.osrec');
+await page.goto(EDITOR_URL);
+await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 await page.evaluate(() => enterCropMode());
 // click Custom, type 21:9, Enter
