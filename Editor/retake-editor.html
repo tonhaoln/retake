@@ -27,7 +27,9 @@ body{
   -webkit-font-smoothing:antialiased;
   display:flex; flex-direction:column; overflow:hidden; user-select:none;
 }
-:focus-visible{outline:2px solid var(--aur2); outline-offset:2px; border-radius:6px}
+/* no border-radius here: it outranks the element's own and visibly reshapes
+   every button on keyboard focus. Outlines already follow the element's radius. */
+:focus-visible{outline:2px solid var(--aur2); outline-offset:2px}
 button{
   background:var(--s2); color:var(--text); border:1px solid var(--line);
   border-radius:8px; padding:6px 12px; font:inherit; font-weight:500; cursor:pointer;

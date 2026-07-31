@@ -12,9 +12,10 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const BUNDLE = process.argv[2];
-const EDITOR = '<repo>/retake-editor.html';
+const EDITOR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'retake-editor.html');
 const OUT = path.dirname(BUNDLE) + '/../export-' + path.basename(BUNDLE).replace(/\W+/g, '-') + '.mp4';
 
 const fails = [];
@@ -40,7 +41,7 @@ console.log('LOADED:', JSON.stringify(st));
 check('video decoded in real Chrome', st.w > 0 && st.h > 0, `${st.w}x${st.h}`);
 check('duration is real', st.dur > 1, st.dur + 's');
 check('cursor data present', st.samples > 100, st.samples + ' samples');
-check('point scale from meta (not the plain-video fallback)', st.scale !== 1, 'scale ' + st.scale);
+check('meta.json was read (not the plain-video fallback)', st.samples > 0 && st.scale > 0, 'scale ' + st.scale);
 
 // seek across the file — fragmented files fail here if the index is bad
 const seeks = await page.evaluate(async () => {

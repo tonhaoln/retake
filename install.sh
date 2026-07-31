@@ -14,6 +14,12 @@ APP_DIR="${APP_DIR:-$HOME/Applications/Retake}"
   echo "  https://github.com/$REPO"
   exit 1
 }
+[ "$(uname -m)" = "arm64" ] || {
+  echo "The release binary is Apple silicon only, and an Intel Mac would install it"
+  echo "happily and then fail with 'bad CPU type in executable'."
+  echo "Build it yourself instead (two minutes): https://github.com/$REPO#or-build-it-yourself"
+  exit 1
+}
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

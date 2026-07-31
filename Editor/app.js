@@ -121,8 +121,11 @@ async function loadFromFiles(fileList) {
   let screenFile = null;
   if (meta && files[(meta.screen || '').toLowerCase()]) screenFile = files[meta.screen.toLowerCase()];
   if (!screenFile) {
-    const vids = Object.values(files).filter(f => /\.(mp4|mov|webm|m4v)$/i.test(f.name) && !/webcam/i.test(f.name));
-    screenFile = vids.sort((a, b) => b.size - a.size)[0] || null;
+    const vids = Object.values(files).filter(f => /\.(mp4|mov|webm|m4v)$/i.test(f.name));
+    // skip the webcam only when there is something else to pick: a lone file
+    // called webcam.mov is just a video someone dropped in
+    const notCam = vids.filter(f => !/webcam/i.test(f.name));
+    screenFile = (notCam.length ? notCam : vids).sort((a, b) => b.size - a.size)[0] || null;
   }
   if (!screenFile) { toast('No video found — drop a .take folder or a video file.'); return; }
 
@@ -168,6 +171,11 @@ async function loadFromFiles(fileList) {
   S.segs = []; S.selSeg = -1; S.loaded = true;
   S.splits = []; S.cuts = []; S.selPiece = -1; S.selCut = -1;
   S.cropMode = false;
+  // Geometry belongs to the recording it was drawn on, never to the app: a crop
+  // carried into a different video is measured in the WRONG source pixels, and
+  // one that lands outside the frame renders — and exports — pure black.
+  // Cleared before the restore below, which re-applies this recording's own crop.
+  S.set.crop = null; S.set.aspect = { v: 'free' };
   S.fileKey = `${screenFile.name}|${screenFile.size}|${Math.round(video.duration * 10)}`;
 
   // restore previous edits for this recording, if any
@@ -195,6 +203,10 @@ async function loadFromFiles(fileList) {
 
   buildTrack();
   if (restored) syncUIFromSettings();
+  else {   // syncUIFromSettings owns this line when restoring; nothing does otherwise
+    $('cropInfo').style.display = 'none';
+    $('cropAspects').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.v === 'free'));
+  }
   // auto-zoom is opt-in: loading never creates zooms, the Auto button does
 
   // UI
@@ -940,7 +952,11 @@ $('cropAspects').querySelectorAll('button').forEach(b => b.addEventListener('cli
   $('cropCustomHint').style.display = custom ? '' : 'none';
   if (custom) {
     customBase = { ...S.cropDraft };
-    aspectDraft = { v: 'custom', w: parseFloat($('cropW').value) || null, h: parseFloat($('cropH').value) || null };
+    const cw = parseFloat($('cropW').value) || null, ch = parseFloat($('cropH').value) || null;
+    aspectDraft = { v: 'custom', w: cw, h: ch };
+    // empty fields define no ratio, so the previous lock must go — otherwise the
+    // button says Custom while corners still snap to the ratio before it
+    if (!(cw > 0 && ch > 0)) S.cropAspect = null;
     $('cropW').focus(); applyCustomRatio(); return;
   }
   customBase = null;
@@ -1375,13 +1391,19 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (S.cropMode) { if (e.key === 'Escape') exitCropMode(false); return; }
+  // Escape before the input guard: the popover holds nothing BUT selects, so a
+  // keyboard user who opened it could never dismiss it.
+  if (e.key === 'Escape') {
+    $('shortcuts').classList.remove('open');
+    if ($('exportPop').classList.contains('open')) { closePopover(); $('exportChip').focus(); }
+    return;
+  }
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if (mod || e.altKey) return;   // never hijack ⌘S / ⌘R / friends
   if (e.code === 'Space') { e.preventDefault(); S.playing ? pause() : play(); }
   else if (e.key === 'Backspace' || e.key === 'Delete') { deleteSelection(); }
   else if (e.code === 'KeyS') { splitAtPlayhead(); }
   else if (e.key === '?') { toggleShortcuts(); }
-  else if (e.key === 'Escape') { $('shortcuts').classList.remove('open'); closePopover(); }
   else if (e.key === 'ArrowLeft')  { pause(); seekTo(S.video.currentTime - (e.shiftKey ? 1 : 1/30)); }
   else if (e.key === 'ArrowRight') { pause(); seekTo(S.video.currentTime + (e.shiftKey ? 1 : 1/30)); }
 });

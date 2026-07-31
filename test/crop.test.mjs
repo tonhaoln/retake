@@ -12,6 +12,9 @@ page.on('console', m => { if (m.type() === 'error') console.log('PAGE ERROR:', m
 await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
+// zooms are opt-in now: without this the whole gate runs at z=1 and the
+// crop x zoom x cut coordinate maths — the riskiest code here — goes untested
+await page.click('#autoZoom');
 
 // ---- 1. halo cursor render frame
 await page.evaluate(() => {
@@ -37,6 +40,7 @@ const cropState = await page.evaluate(() => ({
 console.log('CROP:', JSON.stringify(cropState));
 check('crop applied exactly', cropState.crop && cropState.crop.x === 160 && cropState.crop.y === 100 && cropState.crop.w === 800 && cropState.crop.h === 450);
 check('canvas follows crop aspect', Math.abs(cropState.canvas[0] / cropState.canvas[1] - 800 / 450) < 0.01);
+check('camera is actually zoomed (else the clamp below is vacuous)', cropState.cam.z > 1.2);
 check('camera clamped inside crop', cropState.cam.cx >= 160 && cropState.cam.cx <= 960 && cropState.cam.cy >= 100 && cropState.cam.cy <= 550);
 await page.evaluate(() => seekTo(2.6));
 await page.waitForTimeout(500);
@@ -76,6 +80,27 @@ console.log('RESTORED:', JSON.stringify(restored));
 check('restore kept the cut', restored.cuts === 1);
 check('restore kept the crop', restored.crop);
 check('restore kept output duration', Math.abs(+restored.outDur - 3.0) < 0.2);
+
+// ---- 6. a crop must NOT follow you into a different recording.
+// It is geometry in source pixels: carried over it is measured against the wrong
+// frame, and a crop larger than the new video renders (and exports) pure black.
+// a genuinely different file: same-file reloads share a fingerprint and restore
+// their own saved crop, which is correct and would mask this
+await page.setInputFiles('#filesInput', FIX + '/webcam.webm');
+await page.waitForTimeout(1500);
+const fresh = await page.evaluate(() => ({
+  crop: S.set.crop,
+  aspect: S.set.aspect && S.set.aspect.v,
+  canvas: [preview.width, preview.height],
+  cropInfoShown: document.getElementById('cropInfo').style.display !== 'none',
+  centre: (() => { const c = preview.getContext('2d'); const d = c.getImageData(preview.width >> 1, preview.height >> 1, 1, 1).data; return d[0] + d[1] + d[2]; })(),
+}));
+console.log('FRESH LOAD:', JSON.stringify(fresh));
+check('a new recording starts uncropped', fresh.crop === null);
+check('the ratio lock does not follow either', fresh.aspect === 'free');
+check('the crop notice is cleared', !fresh.cropInfoShown);
+check('canvas matches the new video, not the old crop', fresh.canvas[0] === 640 && fresh.canvas[1] === 480);
+check('the frame is not black', fresh.centre > 0);
 
 await browser.close();
 if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }

@@ -9,8 +9,8 @@ A free, two-part replacement for Screen Studio:
    *without* the cursor, logs every cursor movement and click, and can record your
    webcam + microphone at the same time. Everything lands in one `.take` folder.
 2. **Editor** (`retake-editor.html`) — a single HTML file that runs in Chrome.
-   Drop the `.take` folder in and it auto-creates zoom-ins from your clicks, redraws
-   a buttery-smooth cursor, adds the gradient framing / rounded corners / shadow,
+   Drop the `.take` folder in, press **Auto** and it builds zoom-ins from your clicks,
+   redraws a buttery-smooth cursor, adds the gradient framing / rounded corners / shadow,
    overlays your webcam bubble, and exports a polished MP4. No install, no server,
    no account, works offline.
 
@@ -25,7 +25,8 @@ you just won't get auto-zoom or the redrawn cursor, since those need the recorde
 
 That downloads the latest release, puts `retake` in `/usr/local/bin` and the
 editor in `~/Applications/Retake`, and stops. [Read the script first](install.sh)
-— it is thirty lines and does nothing else.
+— it is short, does nothing else, and there is no checksum step, so read it
+rather than trusting it.
 
 The binary is ad-hoc signed, not notarised (a notarised build costs $99/year;
 it happens if the project earns it). Two consequences worth knowing: a tarball
@@ -92,15 +93,17 @@ Privacy note: by default the recorder logs *when* keys are pressed but never
    Tip: keep it in your Dock — it's just a file.
 2. Drag the `.take` folder into the window. (Recordings made before the
    rename — `.osrec` folders — open exactly the same, edits included.)
-3. It auto-creates zooms from your clicks. Then:
+3. Press **Auto** in the Zoom section to build zooms from your clicks (nothing is
+   added until you ask, so a recording never opens with zooms you didn't choose).
+   Then:
    - **Timeline**: drag zoom blocks to move them, drag their edges to resize,
      double-click empty space to add one, ⌫ deletes the selected one.
    - **Selected zoom**: drag the dashed ring on the preview to aim it, use the
      Level slider for intensity.
    - **Zoom timing**: the Lead-in / Hold / Speed sliders control how early a zoom
      starts before each click, how long it lingers after, and how fast the camera
-     moves. Adjusting them re-generates the auto zooms live (your manually added
-     zooms are left alone).
+     moves. Once you've pressed Auto, adjusting them rebuilds those zooms live
+     (zooms you added by hand are left alone).
    - **Sidebar**: background gradients or your own image; padding, corner radius,
      shadow; cursor style (arrow / dot / halo), size, smoothing and click
      ripples; hide-when-idle (cursor fades out after a configurable pause and
@@ -118,7 +121,8 @@ Privacy note: by default the recorder logs *when* keys are pressed but never
    - **Halo cursor**: a clearly-visible tinted disc around the cursor (white by
      default; tints + glow strength in the Cursor panel), no arrow on top.
    - **Trim**: drag the ⟨ ⟩ brackets on the timeline.
-   - **Undo**: ⌘Z / ⇧⌘Z walks every timeline and crop edit back and forward.
+   - **Undo**: ⌘Z / ⇧⌘Z walks timeline and crop edits back and forward (not
+     while you're inside crop mode — Esc cancels that instead).
    - Press **?** for all keyboard shortcuts.
 4. The chip next to **Export** shows your settings (format · resolution · fps ·
    ≈ size) — click it to change format (MP4/GIF), quality, resolution and frame
@@ -168,8 +172,10 @@ an issue and a `--no-input` flag is a short patch away.
   Recordings still work; you'd just add zooms manually.
 - **Black recording / permission error** → grant Screen Recording, then fully quit
   and reopen the terminal app.
-- **Webcam file won't play in the editor** → convert it once:
-  `ffmpeg -i webcam.mov -c copy webcam.mp4` and re-drop the folder.
+- **Webcam file won't play in the editor** → re-encode it in place (keep the name:
+  the editor looks for the file `meta.json` names):
+  `ffmpeg -i webcam.mov -c:v libx264 fixed.mov && mv fixed.mov webcam.mov`,
+  then re-drop the folder.
 - **Export has no audio** → your browser lacks an AAC/Opus encoder (rare in Chrome
   on a Mac); update Chrome.
 - **4K export refuses to start** → try 1440p; some machines cap the hardware encoder.

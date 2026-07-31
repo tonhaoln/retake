@@ -343,7 +343,14 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
             writer.finishWriting { c.resume() }
         }
+        // Never print "✓ Saved" over a writer that gave up: a disk that filled
+        // mid-take stops accepting samples silently.
+        if writer.status == .failed {
+            fputs("❌ Recording failed: \(writer.error?.localizedDescription ?? "unknown error")\n" +
+                  "   The video file is truncated at the point of failure.\n", stderr)
+        }
     }
+    var writerFailed: Bool { writer.status == .failed }
 }
 
 // ---------------------------------------------------------------- Webcam / mic
@@ -568,18 +575,6 @@ struct Main {
             exit(1)
         }
 
-        // Crash safety: flush cursor data every 5s once the video clock exists —
-        // a dead process loses seconds of pointer data, not the session.
-        let flushTimer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
-        flushTimer.schedule(deadline: .now() + 5, repeating: 5)
-        flushTimer.setEventHandler {
-            let start = screen.firstFrameTime
-            guard start > 0 else { return }
-            do { try cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: start) }
-            catch { cursor.reportWriteFailureOnce(error) }
-        }
-        flushTimer.resume()
-
         var camera: CameraRecorder? = nil
         var cameraFile: String? = nil
         if opts.webcam || opts.mic {
@@ -589,6 +584,29 @@ struct Main {
                 camera = cam; cameraFile = file
             }
         }
+
+        // Crash safety, started once the camera is up so its offset is capturable:
+        // flush cursor data every 5s while the video clock exists, so a dead
+        // process loses seconds of pointer data, not the session.
+        // A serial queue lets stop drain any flush still in flight.
+        let flushQueue = DispatchQueue(label: "cursor.flush")
+        var metaHasCamera = false
+        let flushTimer = DispatchSource.makeTimerSource(queue: flushQueue)
+        flushTimer.schedule(deadline: .now() + 5, repeating: 5)
+        flushTimer.setEventHandler { [camera, cameraFile] in
+            let start = screen.firstFrameTime
+            guard start > 0 else { return }
+            do { try cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: start) }
+            catch { cursor.reportWriteFailureOnce(error) }
+            // Rewrite meta once the camera offset is knowable, so a killed
+            // recording recovers with the webcam in sync rather than shifted by
+            // its warm-up. Needs firstFrameTime, hence the guard above.
+            if !metaHasCamera, let cam = camera, let file = cameraFile {
+                metaHasCamera = true
+                writeMeta(cameraFile: file, webcamOffset: (cam.startedAt - start).rounded(toPlaces: 4))
+            }
+        }
+        flushTimer.resume()
 
         var extras: [String] = []
         if opts.systemAudio { extras.append("system audio") }
@@ -624,21 +642,28 @@ struct Main {
 
         print("\n■ Stopping…")
         flushTimer.cancel()
+        flushQueue.sync { }   // drain an in-flight flush, or it can land after the final write
         cursor.stop()
         await camera?.stop()
         await screen.finish()
 
         // Final cursor data + metadata (timestamps relative to first video frame)
         let videoStart = screen.firstFrameTime
-        do { try cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: videoStart) }
-        catch { cursor.reportWriteFailureOnce(error) }
+        if videoStart > 0 {   // without a video clock every timestamp would be absolute mach time
+            do { try cursor.writeJSON(to: bundle.appendingPathComponent("cursor.json"), videoStart: videoStart) }
+            catch { cursor.reportWriteFailureOnce(error) }
+        } else {
+            fputs("⚠️  No video frames were captured — cursor data not written.\n", stderr)
+        }
         writeMeta(cameraFile: cameraFile,
                   webcamOffset: camera.map { ($0.startedAt - videoStart).rounded(toPlaces: 4) })
 
         if screen.droppedFrames > 0 {
             print("⚠️  \(screen.droppedFrames) frame\(screen.droppedFrames == 1 ? "" : "s") dropped (encoder back-pressure) — a lower --fps helps.")
         }
-        print("""
+        print(screen.writerFailed ? """
+        ⚠️  Saved \(bundle.lastPathComponent), but the recording was cut short (see the error above).
+        """ : """
         ✓ Saved \(bundle.lastPathComponent)
           Open the editor (retake-editor.html) in Chrome and load this folder.
         """)
