@@ -148,8 +148,15 @@ reading rather than trusting.
 
 **Nothing leaves your Mac.** No analytics, no telemetry, no update pings, no
 accounts. The recorder writes files to a folder; the editor is an HTML file
-that runs offline. There is no network code in either half — check for
-yourself, it is one Swift file and one JavaScript file.
+that runs offline. There is no network code in either half, and you don't have
+to take my word for it:
+
+    grep -rniE 'fetch\(|XMLHttpRequest|WebSocket|EventSource|URLSession|sendBeacon' \
+      retake-editor.html Recorder/Sources/retake/App.swift
+
+Zero hits, across both halves of the tool. The shipped editor contains four
+`http` URLs in total and all four are comments, crediting where a piece of
+code came from.
 
 **Keystrokes are timings, not keys.** By default `cursor.json` contains
 exactly four things: cursor positions over time, click positions and times,

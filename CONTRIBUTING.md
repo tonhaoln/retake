@@ -1,16 +1,16 @@
 # Contributing
 
-Retake is small on purpose: a Swift CLI that records, and one HTML file that
-edits. Both are readable in an afternoon, and that is a feature worth
-protecting.
+Retake is small on purpose: a Swift CLI that records, and an editor that ships
+as one self-contained HTML file. The sources behind it are short enough to read
+in an afternoon, and that smallness is a feature worth protecting.
 
 ## Start here
 
 Bug fixes need no permission. Send them.
 
-For a feature, open an issue first. The project has a north star
-([NORTH-STAR.md](NORTH-STAR.md)) and a short list of things it deliberately
-says no to. A five-minute conversation beats a rejected pull request.
+For a feature, open an issue first. The rules below are what this project
+deliberately says no to, and a five-minute conversation beats a rejected pull
+request.
 
 ## Running the tests
 
@@ -18,7 +18,7 @@ says no to. A five-minute conversation beats a rejected pull request.
 cd test
 npm install
 npx playwright install chromium
-node ../Editor/build.js     # always build first — the tests load the built file
+node ../Editor/build.js     # always build first, the tests load the built file
 npm test
 ```
 
@@ -26,16 +26,25 @@ Every `*.test.mjs` file is a gate and CI runs all of them on every pull
 request. `shot-*.mjs` files are screenshot helpers, not gates. If you touch
 the editor, the whole suite has to pass.
 
+**A gate has to be capable of failing.** A test that cannot fail is
+documentation. This suite ran green for days on assertions that could not
+come out false, so if you add a gate, break the thing it guards and watch it
+go red before you send it.
+
 ## Editing the editor
 
 `retake-editor.html` at the repo root is a **build artifact**. Edit the
 sources instead:
 
-- `Editor/retake-editor.html` — markup and CSS
-- `Editor/app.js` — logic
+- `Editor/retake-editor.html`, markup and CSS
+- `Editor/app.js`, logic
 
-Then run `node Editor/build.js` and copy the dist over the root file. CI
-compares them, so a hand-edited root file fails the build.
+Then run `node Editor/build.js` and copy the dist over the root file.
+
+**What ships has to be what you can read.** Nothing is minified, every bundled
+library keeps its notice and its upstream URL, and CI rebuilds the editor from
+source and byte-compares it against the committed file. A hand-edited root
+file fails the build. That is what keeps "audit it yourself" a real offer.
 
 ## The two rules that don't bend
 
