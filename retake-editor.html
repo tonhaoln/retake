@@ -191,10 +191,20 @@ label.row .val{
 #cursorStyle{display:grid; grid-template-columns:repeat(2,1fr)}
 #cursorStyle button{min-width:0}
 .seg-btns button.sel{background:var(--grad); border-color:transparent; font-weight:600; color:#0b0c10}
-/* the halo tints are swatches too: their inline colour beats .sel's gradient,
-   so they need the same ring-with-a-gap or selection is invisible on them */
-#spotColors button{border:0; box-shadow:0 0 0 1px rgba(255,255,255,.28)}
-#spotColors button.sel{box-shadow:0 0 0 2px var(--s1), 0 0 0 3px #fff}
+/* The halo tints are a COLOUR choice, so they get the swatch language, not the
+   segmented-control one their container implies: chips pick a colour, segments
+   pick a mode. (They were 12px-tall bars only because the buttons hold a single
+   space, so their height was pure padding — an accident, not a decision.)
+   Their inline colour also beats .sel's gradient, so selection has to be the
+   same ring-with-a-gap the background swatches use, or it is invisible. */
+#spotColors button{
+  flex:0 0 28px; width:28px; height:28px; min-width:0; padding:0;
+  border:0; border-radius:6px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.28);
+  transition:transform .15s var(--ease), box-shadow .15s var(--ease);
+}
+#spotColors button:hover{transform:scale(1.07); box-shadow:0 0 0 1px rgba(255,255,255,.5)}
+#spotColors button.sel,#spotColors button.sel:hover{box-shadow:0 0 0 2px var(--s1), 0 0 0 3px #fff}
 .hint{color:var(--faint); font-size:12px; margin:6px 0; line-height:1.45}
 #zoomSel .hint{margin-bottom:6px}
 
