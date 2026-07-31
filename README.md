@@ -70,6 +70,7 @@ After granting Screen Recording you must quit and reopen the terminal app once.
     retake --no-system-audio  # skip app/system sound
     retake --no-notify        # skip the "Saved" notification
     retake --fps 30           # lighter files
+    retake --out ~/Movies     # save somewhere other than ~/Desktop/Retake
 
 Stop with **Ctrl+C** in the terminal — or **⌃⎋ (Control+Escape)** from any app.
 You get a folder like `~/Desktop/Retake/2026-07-29 14.03.12.take` containing
@@ -105,7 +106,7 @@ Privacy note: by default the recorder logs *when* keys are pressed but never
      moves. Once you've pressed Auto, adjusting them rebuilds those zooms live
      (zooms you added by hand are left alone).
    - **Sidebar**: background gradients or your own image; padding, corner radius,
-     shadow; cursor style (arrow / dot / halo), size, smoothing and click
+     shadow; cursor style (arrow / dot / halo / hidden), size, smoothing and click
      ripples; hide-when-idle (cursor fades out after a configurable pause and
      returns the instant it moves — clicks count as activity); motion blur on
      camera moves; keystroke display (if recorded with `--keys`); webcam corner,
@@ -127,12 +128,14 @@ Privacy note: by default the recorder logs *when* keys are pressed but never
 4. The chip next to **Export** shows your settings (format · resolution · fps ·
    ≈ size) — click it to change format (MP4/GIF), quality, resolution and frame
    rate. Hit **Export**; rendering runs in the browser at roughly real-time
-   speed and the file downloads when done. (GIFs render at up to 960px / 15 fps
-   — right for READMEs and PRs.)
+   speed and the file downloads when done. (GIF ignores the resolution picker
+   and renders at up to 960px / 15 fps — right for READMEs and PRs.)
 
 Your edits are **saved automatically** (in the browser, per recording) — close the
 tab, come back tomorrow, drop the same `.take` folder in, and everything is where
-you left it.
+you left it. The save lives in that browser's storage, so edits you made in
+Chrome won't show up if you reopen the editor in Arc or Edge. Same browser and
+they're there.
 
 ## How it works (the trick)
 
@@ -176,7 +179,8 @@ an issue and a `--no-input` flag is a short patch away.
 ## Troubleshooting
 
 - **"Could not listen for clicks"** → grant Accessibility to your terminal, rerun.
-  Recordings still work; you'd just add zooms manually.
+  Recordings still work; you'd just add zooms manually. The ⌃⎋ stop hotkey needs
+  the same permission, so until you grant it, stop with Ctrl+C in the terminal.
 - **Black recording / permission error** → grant Screen Recording, then fully quit
   and reopen the terminal app.
 - **Webcam file won't play in the editor** → re-encode it in place (keep the name:
