@@ -35,6 +35,33 @@ await page.evaluate(() => exitCropMode(true));
 const dims = await page.evaluate(() => exportDims());
 console.log('export dims', JSON.stringify(dims), 'ratio', (dims[0] / dims[1]).toFixed(3));
 check('export dims follow the ratio', Math.abs(dims[0] / dims[1] - 2.35) < 0.01);
+
+// reopening a crop must restore its ratio LOCK, not just its rectangle
+await page.evaluate(() => enterCropMode());
+const back = await page.evaluate(() => ({
+  selBtn: document.querySelector('#cropAspects button.sel')?.dataset.v,
+  lock: S.cropAspect,
+  w: document.getElementById('cropW').value,
+  h: document.getElementById('cropH').value,
+  fieldsShown: document.getElementById('cropCustomRow').style.display !== 'none',
+  draftRatio: +(S.cropDraft.w / S.cropDraft.h).toFixed(3),
+}));
+console.log('REOPENED:', JSON.stringify(back));
+check('Custom is still the selected button', back.selBtn === 'custom');
+check('the ratio lock survived', Math.abs(back.lock - 2.35) < 0.005);
+check('the ratio fields kept their values', back.w === '2.35' && back.h === '1');
+check('the custom fields are visible', back.fieldsShown);
+check('the restored draft was not refitted', Math.abs(back.draftRatio - 2.35) < 0.01);
+
+// Reset clears the lock along with the crop
+await page.evaluate(() => { $('cropReset').click(); enterCropMode(); });
+const afterReset = await page.evaluate(() => ({
+  selBtn: document.querySelector('#cropAspects button.sel')?.dataset.v, lock: S.cropAspect,
+}));
+console.log('AFTER RESET:', JSON.stringify(afterReset));
+check('Reset returns to Free', afterReset.selBtn === 'free' && afterReset.lock === null);
+await page.evaluate(() => exitCropMode(false));
+
 await browser.close();
 if (fails.length) { console.log('FAILED:', fails.join(' | ')); process.exit(1); }
 console.log('DONE6');

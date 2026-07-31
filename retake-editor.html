@@ -3211,6 +3211,7 @@ const S = {
     spotColor: '#ffffff', spotOpacity: 35,
     hideIdle: true, idleAfter: 2,  // hide the cursor when it hasn't moved for N s
     crop: null,                    // {x,y,w,h} in video px, or null = full frame
+    aspect: { v: 'free' },         // the crop ratio choice, so reopening crop keeps its lock
   }
 };
 
@@ -4037,17 +4038,30 @@ function enterCropMode() {
   pause();
   const fvw = S.video.videoWidth, fvh = S.video.videoHeight;
   S.cropDraft = S.set.crop ? { ...S.set.crop } : { x: 0, y: 0, w: fvw, h: fvh };
-  S.cropAspect = null;
   S.cropMode = true;
   $('cropUI').style.display = '';
   $('cropBtn').style.display = 'none';
   $('side').classList.add('cropping');   // one mode at a time
-  $('cropAspects').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.v === 'free'));
+  // Reopening a crop restores its ratio lock, not just its rectangle: the rect
+  // came back at 21:9, so dragging a corner has to keep it there. Only a crop
+  // that actually exists carries a lock (Reset clears both).
+  aspectDraft = S.set.crop ? { ...(S.set.aspect || { v: 'free' }) } : { v: 'free' };
+  const custom = aspectDraft.v === 'custom';
+  $('cropAspects').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.v === aspectDraft.v));
+  $('cropCustomRow').style.display = custom ? '' : 'none';
+  $('cropCustomHint').style.display = custom ? '' : 'none';
+  if (custom) { $('cropW').value = aspectDraft.w ?? ''; $('cropH').value = aspectDraft.h ?? ''; }
+  // set the lock directly — applyCropAspect would refit the draft we just restored
+  S.cropAspect = aspectDraft.v === 'free' ? null
+    : custom ? (aspectDraft.w > 0 && aspectDraft.h > 0 ? aspectDraft.w / aspectDraft.h : null)
+    : parseFloat(aspectDraft.v);
+  customBase = custom ? { ...S.cropDraft } : null;
   fitPreviewCanvas();
   requestRender();
 }
 function exitCropMode(apply) {
   if (apply) {
+    S.set.aspect = { ...aspectDraft };   // only Apply commits the choice; Cancel leaves it untouched
     pushUndo();
     const d = S.cropDraft, fvw = S.video.videoWidth, fvh = S.video.videoHeight;
     const full = d.x < 2 && d.y < 2 && d.w > fvw - 4 && d.h > fvh - 4;
@@ -4068,7 +4082,11 @@ function exitCropMode(apply) {
 $('cropBtn').onclick = enterCropMode;
 $('cropApply').onclick = () => exitCropMode(true);
 $('cropCancel').onclick = () => exitCropMode(false);
-$('cropReset').onclick = () => { if (S.set.crop) pushUndo(); S.set.crop = null; exitCropMode(false); };
+$('cropReset').onclick = () => {
+  if (S.set.crop) pushUndo();
+  S.set.crop = null; S.set.aspect = { v: 'free' };   // no crop, no lock
+  exitCropMode(false);
+};
 function applyCropAspect(ratio) {
   S.cropAspect = ratio;
   if (ratio) {
@@ -4087,18 +4105,24 @@ $('cropAspects').querySelectorAll('button').forEach(b => b.addEventListener('cli
   const custom = v === 'custom';
   $('cropCustomRow').style.display = custom ? '' : 'none';
   $('cropCustomHint').style.display = custom ? '' : 'none';
-  if (custom) { customBase = { ...S.cropDraft }; $('cropW').focus(); applyCustomRatio(); return; }
+  if (custom) {
+    customBase = { ...S.cropDraft };
+    aspectDraft = { v: 'custom', w: parseFloat($('cropW').value) || null, h: parseFloat($('cropH').value) || null };
+    $('cropW').focus(); applyCustomRatio(); return;
+  }
   customBase = null;
+  aspectDraft = { v };
   applyCropAspect(v === 'free' ? null : parseFloat(v));
 }));
 // two numeric fields, w : h — an empty field or a ratio outside 0.2–5 changes nothing.
 // Every keystroke refits from the draft as it was when Custom was clicked, so
 // typing "2" then "21" can't progressively shrink the box.
-let customBase = null;
+let customBase = null, aspectDraft = { v: 'free' };
 const applyCustomRatio = () => {
   const w = parseFloat($('cropW').value), h = parseFloat($('cropH').value);
   const r = w > 0 && h > 0 ? w / h : null;
   if (!(r && isFinite(r) && r >= 0.2 && r <= 5)) return;
+  aspectDraft = { v: 'custom', w, h };
   if (customBase) S.cropDraft = { ...customBase };
   applyCropAspect(r);
 };
