@@ -177,9 +177,9 @@ label.row .val{
 .swatch{
   aspect-ratio:1; border-radius:6px; cursor:pointer; padding:0;
   border:2px solid transparent;                             /* the selected-state affordance */
-  box-shadow:0 0 0 1px rgba(0,0,0,.5);                      /* separates the near-black tiles from
-                                                               the panel without a light-source cue:
-                                                               a light rim would read as a bevel */
+  /* outset hairline = outline; an INSET light rim would read as a bevel.
+     Needed because the dark tiles (Graphite is 1.14:1) have no edge of their own. */
+  box-shadow:0 0 0 1px rgba(255,255,255,.34);   /* 3.12:1 against the panel */
   transition:transform .15s var(--ease), border-color .15s var(--ease);
 }
 .swatch:hover{transform:scale(1.07)}
