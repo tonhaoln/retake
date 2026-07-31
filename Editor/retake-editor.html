@@ -174,21 +174,27 @@ label.row .val{
 }
 #side h3:first-child{border-top:none; margin-top:2px; padding-top:0}
 .swatches{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin:8px 0}
+/* Colour swatches. No border at all: a border here inherits button:hover and
+   paints a 2px rim INSIDE the tile, which is the bevel. Edge and selection are
+   both box-shadow rings, so neither ever eats the colour.
+   Selection is a ring offset by a gap in the panel colour — the standard
+   colour-well pattern, and the gap has to be deliberate to read as intentional. */
 .swatch{
-  aspect-ratio:1; border-radius:6px; cursor:pointer; padding:0;
-  border:2px solid transparent;                             /* the selected-state affordance */
-  /* outset hairline = outline; an INSET light rim would read as a bevel.
-     Needed because the dark tiles (Graphite is 1.14:1) have no edge of their own. */
-  box-shadow:0 0 0 1px rgba(255,255,255,.34);   /* 3.12:1 against the panel */
-  transition:transform .15s var(--ease), border-color .15s var(--ease);
+  aspect-ratio:1; border-radius:6px; cursor:pointer; padding:0; border:0;
+  box-shadow:0 0 0 1px rgba(255,255,255,.28);
+  transition:transform .15s var(--ease), box-shadow .15s var(--ease);
 }
-.swatch:hover{transform:scale(1.07)}
-.swatch.sel{border-color:#fff}
+.swatch:hover{transform:scale(1.07); box-shadow:0 0 0 1px rgba(255,255,255,.5)}
+.swatch.sel,.swatch.sel:hover{box-shadow:0 0 0 2px var(--s1), 0 0 0 3px #fff}
 .seg-btns{display:flex; gap:6px; flex-wrap:wrap; margin:8px 0}
 .seg-btns button{flex:1 1 0; min-width:44px; padding:6px 4px; font-size:12px}
 #cursorStyle{display:grid; grid-template-columns:repeat(2,1fr)}
 #cursorStyle button{min-width:0}
 .seg-btns button.sel{background:var(--grad); border-color:transparent; font-weight:600; color:#0b0c10}
+/* the halo tints are swatches too: their inline colour beats .sel's gradient,
+   so they need the same ring-with-a-gap or selection is invisible on them */
+#spotColors button{border:0; box-shadow:0 0 0 1px rgba(255,255,255,.28)}
+#spotColors button.sel{box-shadow:0 0 0 2px var(--s1), 0 0 0 3px #fff}
 .hint{color:var(--faint); font-size:12px; margin:6px 0; line-height:1.45}
 #zoomSel .hint{margin-bottom:6px}
 
