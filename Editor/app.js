@@ -848,12 +848,16 @@ function drawCropUI() {
   ctx.fillRect(ox, dy + dh, fvw * sc, oy + fvh * sc - dy - dh);
   ctx.fillRect(ox, dy, dx - ox, dh);
   ctx.fillRect(dx + dw, dy, ox + fvw * sc - dx - dw, dh);
-  // rule-of-thirds grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
-  for (let i = 1; i < 3; i++) {
-    ctx.beginPath(); ctx.moveTo(dx + dw * i / 3, dy); ctx.lineTo(dx + dw * i / 3, dy + dh); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(dx, dy + dh * i / 3); ctx.lineTo(dx + dw, dy + dh * i / 3); ctx.stroke();
-  }
+  // rule-of-thirds grid, dual-stroked — same lesson as the size label below:
+  // white alone disappears over light content, so a dark underlay carries it
+  const gridLines = () => {
+    for (let i = 1; i < 3; i++) {
+      ctx.beginPath(); ctx.moveTo(dx + dw * i / 3, dy); ctx.lineTo(dx + dw * i / 3, dy + dh); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(dx, dy + dh * i / 3); ctx.lineTo(dx + dw, dy + dh * i / 3); ctx.stroke();
+    }
+  };
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 3; gridLines();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1; gridLines();
   // border + handles
   ctx.strokeStyle = '#7c8cff'; ctx.lineWidth = 2;
   ctx.strokeRect(dx, dy, dw, dh);
