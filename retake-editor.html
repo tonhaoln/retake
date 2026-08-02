@@ -424,6 +424,12 @@ label.row .val{
     <label class="row" title="A soft tick at every click, mixed into the export"><span class="lab">Click sounds</span><input type="checkbox" id="clickSnd"></label>
     <div class="hint" id="audioHint">No audio track found.</div>
     </section>
+
+    <section id="secLook">
+    <h3>Your look</h3>
+    <div class="seg-btns"><button id="saveLook"><svg viewBox="0 0 16 16"><path d="M4 2h8v12l-4-3-4 3z"/></svg>Make this my default style</button></div>
+    <div class="hint">New recordings open with your saved look. Edited ones keep their own.</div>
+    </section>
   </div>
 </div>
 
@@ -3409,9 +3415,19 @@ async function loadFromFiles(fileList) {
 
   buildTrack();
   if (restored) syncUIFromSettings();
-  else {   // syncUIFromSettings owns this line when restoring; nothing does otherwise
+  else {
+    // Every recording that opens without existing edits gets the latest look
+    // applied on arrival; recordings with an autosave keep their own.
+    applyDefaultLook();
+    // syncUIFromSettings owns these two lines when restoring; nothing else does
     $('cropInfo').style.display = 'none';
     $('cropAspects').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.v === 'free'));
+    // Seed lastSaved with the exact serialisation the interval produces, so
+    // "has an autosave" means "has edits": merely opening a recording — or
+    // receiving the default look — writes nothing. Without this, the editor
+    // autosaved within 1.5s of opening, and previewing five takes to pick one
+    // would have locked the other four to their arrival look forever.
+    lastSaved = serializeEdits();
   }
   // auto-zoom is opt-in: loading never creates zooms, the Auto button does
 
@@ -3632,10 +3648,16 @@ function pushUndo() {
   if (undoStack.length > UNDO_MAX) undoStack.shift();
   redoStack.length = 0;
 }
+// one serialiser for the interval, flushSave AND the non-restored seed below —
+// if the seed were built by hand and drifted a byte, the first tick would
+// write an autosave for a recording nobody edited
+function serializeEdits() {
+  return JSON.stringify({ v: 2, set: S.set, segs: S.segs, trimIn: S.trimIn, trimOut: S.trimOut, splits: S.splits, cuts: S.cuts });
+}
 function flushSave() {   // force the autosave write NOW (undo/redo must survive instant reload)
   if (!S.fileKey) return;
   try {
-    const data = JSON.stringify({ v: 2, set: S.set, segs: S.segs, trimIn: S.trimIn, trimOut: S.trimOut, splits: S.splits, cuts: S.cuts });
+    const data = serializeEdits();
     localStorage.setItem('retake:' + S.fileKey, data);
     lastSaved = data;
   } catch (e) {}
@@ -4948,10 +4970,42 @@ setInterval(() => {
   if (!S.loaded || !S.fileKey) return;
   updateSizeEst();
   try {
-    const data = JSON.stringify({ v: 2, set: S.set, segs: S.segs, trimIn: S.trimIn, trimOut: S.trimOut, splits: S.splits, cuts: S.cuts });
+    const data = serializeEdits();
     if (data !== lastSaved) { localStorage.setItem('retake:' + S.fileKey, data); lastSaved = data; }
   } catch (e) {}
 }, 1500);
+
+// ---- default look: style travels, geometry doesn't.
+// A strict ALLOWLIST, never S.set minus a denylist — a denylist re-creates
+// the crop-leak exposure the moment anyone adds a key. Settings about YOU
+// travel; settings about THIS recording never do: crop, aspect, zooms, cuts,
+// trim, volumes, webcam placement and the per-take toggles (camShow, camPos,
+// camShape, camSize, micOn, sysOn, keysOn) are out by construction.
+const LOOK_KEYS = ['bg', 'pad', 'radius', 'shadow', 'cursorStyle', 'curSize', 'curSmooth',
+  'ripples', 'clickSnd', 'mblur', 'hideIdle', 'idleAfter', 'spotColor', 'spotOpacity',
+  'zoomLead', 'zoomHold', 'zoomTrans', 'quality'];
+function saveDefaultLook() {
+  if (!S.loaded) return;
+  const look = { v: 1 };
+  for (const k of LOOK_KEYS) look[k] = S.set[k];
+  if (look.bg === -1) look.bg = 0;   // background images aren't persisted
+  // export format/res/fps are DOM-only by design (putting them in S.set would
+  // silently make them per-recording); they live in the look blob alone
+  look.fmt = $('exportFmt').value; look.res = $('exportRes').value; look.fps = $('exportFps').value;
+  try { localStorage.setItem('retake:defaultLook', JSON.stringify(look)); } catch (e) { return; }
+  toast('This look is now the default for new recordings.', 2600, 'ok');
+}
+function applyDefaultLook() {
+  let look = null;
+  try { look = JSON.parse(localStorage.getItem('retake:defaultLook')); } catch (e) {}
+  if (!look) return;
+  for (const k of LOOK_KEYS) if (k in look) S.set[k] = look[k];
+  if (look.fmt) $('exportFmt').value = look.fmt;
+  if (look.res) $('exportRes').value = look.res;
+  if (look.fps) $('exportFps').value = look.fps;
+  syncUIFromSettings();
+}
+$('saveLook').onclick = saveDefaultLook;
 
 // background swatches (real buttons: focusable and named for screen readers)
 (function () {
