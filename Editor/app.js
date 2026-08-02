@@ -212,15 +212,31 @@ async function loadFromFiles(fileList) {
   // UI
   $('dropHint').classList.add('hidden');
   $('exportBtn').disabled = false;
+  // Absent capability = faded + inert, never hidden: the dead section is
+  // documentation for the recorder, delivered at the exact moment the user
+  // wishes they had the feature. Hidden sections make the tool look smaller
+  // than it is. inert, not bare pointer-events — faded controls must not
+  // stay Tab-reachable.
+  const absent = (id, off) => { const el = $(id); el.classList.toggle('absent', off); el.inert = off; };
+  const hasKeys = !!(cursor && cursor.keystrokes && cursor.keystrokes.length);
+  absent('secWebcam', !webcam);
+  absent('micRow', !micFile);
+  absent('sysRow', !sysFile);
+  absent('keysRow', !hasKeys);
+  // hint wording follows provenance: a recorder bundle names the flag that
+  // lights the section up; a plain OBS/QuickTime video is not a "recording
+  // without --webcam", it never had one to begin with
   $('camHint').style.display = webcam ? 'none' : '';
-  $('micRow').style.display = micFile ? '' : 'none';
-  $('sysRow').style.display = sysFile ? '' : 'none';
-  $('keysRow').style.display = (cursor && cursor.keystrokes && cursor.keystrokes.length) ? '' : 'none';
+  $('camHint').textContent = meta ? 'Recorded without --webcam.' : 'This video has no webcam track.';
+  $('keysHint').style.display = (!hasKeys && meta) ? '' : 'none';
   const audioBits = [];
   if (micFile) audioBits.push('microphone');
   if (sysFile) audioBits.push(meta ? 'system audio' : "the video's own audio");
-  $('audioHint').textContent = audioBits.length
+  let audioTxt = audioBits.length
     ? 'Tracks: ' + audioBits.join(' + ') + '.' : 'No audio tracks in this recording.';
+  if (meta && !micFile) audioTxt += ' Recorded without --mic.';
+  if (meta && !sysFile) audioTxt += ' Recorded with --no-system-audio.';
+  $('audioHint').textContent = audioTxt;
   buildTick();
   applyAudioPrefs();
   fitPreviewCanvas();

@@ -28,6 +28,17 @@ await page.screenshot({ path: OUT + '/12-spotlight.png' });
 // ---- 2. crop mode UI
 await page.evaluate(() => { S.set.cursorStyle = 'arrow'; enterCropMode(); S.cropDraft = { x: 160, y: 100, w: 800, h: 450 }; requestRender(); });
 await page.waitForTimeout(400);
+// crop-mode dimming survives the sectioned sidebar: later sections defer,
+// Frame stays live (the custom-aspect gate really clicks inside it). This
+// used to be CSS that could only fail visually — now it can fail loudly.
+const dim = await page.evaluate(() => ({
+  zoomOp: getComputedStyle(document.getElementById('secZoom')).opacity,
+  zoomPE: getComputedStyle(document.getElementById('secZoom')).pointerEvents,
+  frameOp: getComputedStyle(document.getElementById('secFrame')).opacity,
+  framePE: getComputedStyle(document.getElementById('secFrame')).pointerEvents,
+}));
+check('crop mode dims the later sections', dim.zoomOp === '0.35' && dim.zoomPE === 'none');
+check('Frame stays live in crop mode', dim.frameOp === '1' && dim.framePE !== 'none');
 await page.screenshot({ path: OUT + '/13-crop-mode.png' });
 // apply crop
 await page.evaluate(() => exitCropMode(true));

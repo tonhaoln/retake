@@ -165,16 +165,20 @@ label.row .val{
   flex:0 0 268px; background:var(--s1); border-left:1px solid var(--line);
   overflow-y:auto; padding:16px 16px 48px;
 }
-/* crop mode owns the panel: everything from Background down defers */
-#side.cropping h3:not(:first-child),
-#side.cropping h3:not(:first-child) ~ *{opacity:.35; pointer-events:none}
+/* crop mode owns the panel: every section after Frame defers */
+#side.cropping > section:not(:first-child){opacity:.35; pointer-events:none}
+/* absent capability: faded and inert, never hidden — but the hint naming the
+   recorder flag stays readable, or the documentation dims with the corpse */
+#side .absent{opacity:.35}
+#side section.absent{opacity:1}
+#side section.absent > *:not(.hint){opacity:.35}
 #side::-webkit-scrollbar{width:8px}
 #side::-webkit-scrollbar-thumb{background:var(--s3); border-radius:4px}
 #side h3{
   font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:var(--faint);
   margin:24px 0 8px; padding-top:16px; border-top:1px solid var(--line); font-weight:600;
 }
-#side h3:first-child{border-top:none; margin-top:2px; padding-top:0}
+#side > section:first-child h3{border-top:none; margin-top:2px; padding-top:0}
 .swatches{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin:8px 0}
 /* Colour swatches. No border at all: a border here inherits button:hover and
    paints a 2px rim INSIDE the tile, which is the bevel. Edge and selection are
@@ -310,6 +314,7 @@ label.row .val{
     </div>
   </div>
   <div id="side">
+    <section id="secFrame">
     <h3>Frame</h3>
     <div class="seg-btns"><button id="cropBtn"><svg viewBox="0 0 16 16"><path d="M4 1v11h11M1 4h11v11"/></svg>Crop…</button></div>
     <div id="cropUI" style="display:none">
@@ -340,7 +345,9 @@ label.row .val{
       <div class="hint">Drag on the preview, or nudge with arrow keys — ⇧ for 10 px, ⌥ resizes.</div>
     </div>
     <div class="hint" id="cropInfo" style="display:none"></div>
+    </section>
 
+    <section id="secBg">
     <h3>Background</h3>
     <div class="swatches" id="bgSwatches"></div>
     <div class="seg-btns">
@@ -351,7 +358,9 @@ label.row .val{
     <label class="row"><span class="lab">Padding</span><input id="pad" type="range" min="0" max="18" step="0.5" value="7"><span class="val" id="padV"></span></label>
     <label class="row"><span class="lab">Corners</span><input id="radius" type="range" min="0" max="40" step="1" value="14"><span class="val" id="radiusV"></span></label>
     <label class="row"><span class="lab">Shadow</span><input id="shadow" type="range" min="0" max="100" step="1" value="55"><span class="val" id="shadowV"></span></label>
+    </section>
 
+    <section id="secZoom">
     <h3>Zoom</h3>
     <div class="seg-btns">
       <button id="autoZoom"><svg viewBox="0 0 16 16"><path d="M8 1.5l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6zM13 11.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>Auto</button>
@@ -367,7 +376,9 @@ label.row .val{
     <label class="row" title="How long the zoom stays after the click"><span class="lab">Hold</span><input id="zHold" type="range" min="0.5" max="4" step="0.1" value="1.9"><span class="val" id="zHoldV"></span></label>
     <label class="row" title="How fast the camera moves in and out"><span class="lab">Speed</span><input id="zTrans" type="range" min="0.3" max="1.5" step="0.05" value="0.75"><span class="val" id="zTransV"></span></label>
     <label class="row" title="Cinematic blur while the camera is moving fast"><span class="lab">Motion blur</span><input type="checkbox" id="mblur" checked></label>
+    </section>
 
+    <section id="secCursor">
     <h3>Cursor</h3>
     <div class="seg-btns" id="cursorStyle">
       <button data-v="arrow" class="sel">Arrow</button><button data-v="dot">Dot</button><button data-v="ring">Halo</button><button data-v="none">Hidden</button>
@@ -383,8 +394,11 @@ label.row .val{
     <label class="row" title="Fade the cursor out when it hasn't moved for a while"><span class="lab">Hide when idle</span><input type="checkbox" id="hideIdle" checked></label>
     <label class="row" id="idleRow"><span class="lab">After</span><input id="idleAfter" type="range" min="0.5" max="5" step="0.25" value="2"><span class="val" id="idleAfterV"></span></label>
     <label class="row"><span class="lab">Click ripples</span><input type="checkbox" id="ripples" checked></label>
-    <label class="row" id="keysRow" style="display:none" title="Recorded with --keys"><span class="lab">Keystrokes</span><input type="checkbox" id="keysOn" checked></label>
+    <label class="row" id="keysRow" title="Recorded with --keys"><span class="lab">Keystrokes</span><input type="checkbox" id="keysOn" checked></label>
+    <div class="hint" id="keysHint" style="display:none">Recorded without --keys.</div>
+    </section>
 
+    <section id="secWebcam">
     <h3>Webcam</h3>
     <label class="row"><span class="lab">Show webcam</span><input type="checkbox" id="camShow" checked></label>
     <div class="seg-btns" id="camPos">
@@ -395,7 +409,9 @@ label.row .val{
     </div>
     <label class="row"><span class="lab">Size</span><input id="camSize" type="range" min="10" max="34" step="1" value="19"><span class="val" id="camSizeV"></span></label>
     <div class="hint" id="camHint">No webcam track in this recording.</div>
+    </section>
 
+    <section id="secAudio">
     <h3>Audio</h3>
     <div id="micRow">
       <label class="row"><span class="lab">Microphone</span><input type="checkbox" id="micOn" checked></label>
@@ -407,6 +423,7 @@ label.row .val{
     </div>
     <label class="row" title="A soft tick at every click, mixed into the export"><span class="lab">Click sounds</span><input type="checkbox" id="clickSnd"></label>
     <div class="hint" id="audioHint">No audio track found.</div>
+    </section>
   </div>
 </div>
 
@@ -3401,15 +3418,31 @@ async function loadFromFiles(fileList) {
   // UI
   $('dropHint').classList.add('hidden');
   $('exportBtn').disabled = false;
+  // Absent capability = faded + inert, never hidden: the dead section is
+  // documentation for the recorder, delivered at the exact moment the user
+  // wishes they had the feature. Hidden sections make the tool look smaller
+  // than it is. inert, not bare pointer-events — faded controls must not
+  // stay Tab-reachable.
+  const absent = (id, off) => { const el = $(id); el.classList.toggle('absent', off); el.inert = off; };
+  const hasKeys = !!(cursor && cursor.keystrokes && cursor.keystrokes.length);
+  absent('secWebcam', !webcam);
+  absent('micRow', !micFile);
+  absent('sysRow', !sysFile);
+  absent('keysRow', !hasKeys);
+  // hint wording follows provenance: a recorder bundle names the flag that
+  // lights the section up; a plain OBS/QuickTime video is not a "recording
+  // without --webcam", it never had one to begin with
   $('camHint').style.display = webcam ? 'none' : '';
-  $('micRow').style.display = micFile ? '' : 'none';
-  $('sysRow').style.display = sysFile ? '' : 'none';
-  $('keysRow').style.display = (cursor && cursor.keystrokes && cursor.keystrokes.length) ? '' : 'none';
+  $('camHint').textContent = meta ? 'Recorded without --webcam.' : 'This video has no webcam track.';
+  $('keysHint').style.display = (!hasKeys && meta) ? '' : 'none';
   const audioBits = [];
   if (micFile) audioBits.push('microphone');
   if (sysFile) audioBits.push(meta ? 'system audio' : "the video's own audio");
-  $('audioHint').textContent = audioBits.length
+  let audioTxt = audioBits.length
     ? 'Tracks: ' + audioBits.join(' + ') + '.' : 'No audio tracks in this recording.';
+  if (meta && !micFile) audioTxt += ' Recorded without --mic.';
+  if (meta && !sysFile) audioTxt += ' Recorded with --no-system-audio.';
+  $('audioHint').textContent = audioTxt;
   buildTick();
   applyAudioPrefs();
   fitPreviewCanvas();
