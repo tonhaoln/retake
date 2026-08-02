@@ -322,12 +322,22 @@ label.row .val{
         <input type="number" id="cropH" min="0.1" step="0.01" placeholder="9">
       </div>
       <div class="hint" id="cropCustomHint" style="display:none">Width : height — decimals are fine (2.35 : 1).</div>
+      <div class="seg-btns" id="cropAlignH">
+        <button data-a="l" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16"><path d="M2.5 2v12"/><rect x="5" y="5.5" width="8" height="5" rx="1"/></svg></button>
+        <button data-a="ch" title="Centre horizontally" aria-label="Centre horizontally"><svg viewBox="0 0 16 16"><path d="M8 2v12"/><rect x="4.5" y="5.5" width="7" height="5" rx="1"/></svg></button>
+        <button data-a="r" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16"><path d="M13.5 2v12"/><rect x="3" y="5.5" width="8" height="5" rx="1"/></svg></button>
+      </div>
+      <div class="seg-btns" id="cropAlignV">
+        <button data-a="t" title="Align top" aria-label="Align top"><svg viewBox="0 0 16 16"><path d="M2 2.5h12"/><rect x="5.5" y="5" width="5" height="8" rx="1"/></svg></button>
+        <button data-a="cv" title="Centre vertically" aria-label="Centre vertically"><svg viewBox="0 0 16 16"><path d="M2 8h12"/><rect x="4.5" y="4.5" width="7" height="7" rx="1"/></svg></button>
+        <button data-a="b" title="Align bottom" aria-label="Align bottom"><svg viewBox="0 0 16 16"><path d="M2 13.5h12"/><rect x="5.5" y="3" width="5" height="8" rx="1"/></svg></button>
+      </div>
       <div class="seg-btns">
         <button id="cropApply" class="primary">Apply</button>
         <button id="cropReset">Reset</button>
         <button id="cropCancel">Cancel</button>
       </div>
-      <div class="hint">Drag the box or its corners on the preview.</div>
+      <div class="hint">Drag on the preview, or nudge with arrow keys — ⇧ for 10 px, ⌥ resizes.</div>
     </div>
     <div class="hint" id="cropInfo" style="display:none"></div>
 

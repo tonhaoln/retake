@@ -828,6 +828,7 @@ function renderFrame() {
 }
 
 // ---- crop mode: full-frame view with a draggable rect
+const CROP_MIN = 120;   // smallest crop dimension, shared by pointer and keyboard paths
 function cropFit() {   // full video → preview mapping
   const W = preview.width, H = preview.height;
   const fvw = S.video.videoWidth, fvh = S.video.videoHeight;
@@ -981,6 +982,57 @@ const applyCustomRatio = () => {
 };
 $('cropW').addEventListener('input', applyCustomRatio);
 $('cropH').addEventListener('input', applyCustomRatio);
+// crop is keyboard-operable: arrows nudge the box in source px (Shift ×10),
+// Alt+arrow resizes it anchored top-left. No undo per keypress — the crop
+// commits at Apply, same as the pointer path.
+function cropKey(e) {
+  if (e.key === 'Escape') { exitCropMode(false); return; }
+  if (e.metaKey || e.ctrlKey) return;
+  if (e.target.tagName === 'INPUT') return;   // typing a custom ratio must not nudge
+  const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (!dir) return;
+  e.preventDefault();   // an unconsumed arrow scrolls #side
+  const d = S.cropDraft, fvw = S.video.videoWidth, fvh = S.video.videoHeight;
+  const step = e.shiftKey ? 10 : 1;
+  if (e.altKey) {
+    // Resize: Right/Down grow, Left/Up shrink. Both dimensions are derived
+    // directly from the target — never via applyCropAspect, whose re-centring
+    // refit collapses an already-refit draft (the 284×120 class of bug). When
+    // growth hits an edge, the clamped dimension back-derives the other, so a
+    // locked ratio survives the clamp.
+    if (dir[0]) {
+      let w = clamp(d.w + dir[0] * step, CROP_MIN, fvw - d.x);
+      let h = S.cropAspect ? w / S.cropAspect : d.h;
+      if (h > fvh - d.y) { h = fvh - d.y; w = S.cropAspect ? h * S.cropAspect : w; }
+      d.w = w; d.h = h;
+    } else {
+      let h = clamp(d.h + dir[1] * step, CROP_MIN, fvh - d.y);
+      let w = S.cropAspect ? h * S.cropAspect : d.w;
+      if (w > fvw - d.x) { w = fvw - d.x; h = S.cropAspect ? w / S.cropAspect : h; }
+      d.w = w; d.h = h;
+    }
+  } else {
+    d.x = clamp(d.x + dir[0] * step, 0, fvw - d.w);
+    d.y = clamp(d.y + dir[1] * step, 0, fvh - d.h);
+  }
+  if (customBase) customBase = { ...S.cropDraft };   // Custom refits from the moved box, not a stale snapshot
+  requestRender();
+}
+// align-to-frame: position only, one-shot. w/h never move, so there is no
+// ratio-lock interaction and none of the refit risk above.
+function cropAlign(a) {
+  const d = S.cropDraft, fvw = S.video.videoWidth, fvh = S.video.videoHeight;
+  if (a === 'l') d.x = 0;
+  else if (a === 'ch') d.x = (fvw - d.w) / 2;
+  else if (a === 'r') d.x = fvw - d.w;
+  else if (a === 't') d.y = 0;
+  else if (a === 'cv') d.y = (fvh - d.h) / 2;
+  else if (a === 'b') d.y = fvh - d.h;
+  if (customBase) customBase = { ...S.cropDraft };
+  requestRender();
+}
+document.querySelectorAll('#cropAlignH button, #cropAlignV button').forEach(b =>
+  b.addEventListener('click', () => cropAlign(b.dataset.a)));
 function loop() {
   if (S.playing && !S.exporting) {
     const t = S.video.currentTime;
@@ -1336,7 +1388,7 @@ preview.addEventListener('pointermove', e => {
   const { sc, ox, oy } = cropFit();
   const fvw = S.video.videoWidth, fvh = S.video.videoHeight;
   const vx = clamp((mx - ox) / sc, 0, fvw), vy = clamp((my - oy) / sc, 0, fvh);
-  const d = S.cropDraft, MIN = 120;
+  const d = S.cropDraft, MIN = CROP_MIN;
   if (cropDrag.kind === 'move') {
     d.x = clamp(vx - cropDrag.gx, 0, fvw - d.w);
     d.y = clamp(vy - cropDrag.gy, 0, fvh - d.h);
@@ -1394,7 +1446,7 @@ window.addEventListener('keydown', e => {
     e.shiftKey ? redo() : undo();
     return;
   }
-  if (S.cropMode) { if (e.key === 'Escape') exitCropMode(false); return; }
+  if (S.cropMode) { cropKey(e); return; }
   // Escape before the input guard: the popover holds nothing BUT selects, so a
   // keyboard user who opened it could never dismiss it.
   if (e.key === 'Escape') {
