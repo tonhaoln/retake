@@ -20,7 +20,7 @@ loader keys off bundle contents, never the extension — do not add one).
   ⚠️ ALWAYS run build.js before testing — tests load the dist file.
   Never hand-edit the root file or the dist; edit the sources.
 - `test/` — Playwright suite. `*.test.mjs` files are gates (`npm test` runs
-  all eleven); `shot-*.mjs` are screenshot helpers, not gates. Paths resolve
+  all sixteen); `shot-*.mjs` are screenshot helpers, not gates. Paths resolve
   through `test/paths.mjs`, so the suite runs on any checkout. Setup once:
   `npm install` and `npx playwright install chromium`. Run: `npm test` from
   `test/`. Fixture: `test/fixture.take` (VP9/Opus because Playwright's
@@ -39,10 +39,11 @@ loader keys off bundle contents, never the extension — do not add one).
    inlined via build.js.
 4. **Test contract**: element ids (exportBtn, exportFmt, exportQ, exportRes,
    exportFps, sizeEst, dirInput, timeline, splitBtn, cropW/cropH, cursorStyle data-v
-   buttons…) and global functions (pause, seekTo, addZoomAt, splitAtPlayhead,
-   deleteSelection, undo, cameraAt, outDuration, out2src, enterCropMode…) are
-   load-bearing. Keep native <input> elements native (tests drive them with
-   value + dispatchEvent('input')).
+   buttons, cropAlignH/cropAlignV data-a buttons, tlHelp, saveLook, keysHint,
+   the sidebar section wrappers secFrame…secLook…) and global functions (pause,
+   seekTo, addZoomAt, splitAtPlayhead, deleteSelection, undo, cameraAt,
+   outDuration, out2src, enterCropMode…) are load-bearing. Keep native <input>
+   elements native (tests drive them with value + dispatchEvent('input')).
 5. **Popover/overlays**: hide with opacity/pointer-events, NEVER display:none
    (Playwright actionability). backdrop-filter only while `.open` (perf).
 6. **Design system (Aurora-hybrid)**: gradient = interactive, everything
@@ -56,4 +57,12 @@ loader keys off bundle contents, never the extension — do not add one).
    push per drag (pointerdown); baseline seeded after load (undoReady).
    Any new edit operation must call pushUndo().
 8. Text nodes JS writes to (toastMsg, sizeEst, time, .lab spans, exportBtn
-   label) — check before restructuring markup around them.
+   label) — check before restructuring markup around them. The hint strip
+   (#tlHelp) is innerHTML variants keyed by selection state, never textContent.
+9. **Autosave semantics (2026-08-02)**: opening a recording is not an edit.
+   Non-restored loads seed `lastSaved` via `serializeEdits()` — the single
+   serialiser shared with the interval and flushSave — so zero-edit sessions
+   write nothing and the default look ("style travels, geometry doesn't",
+   strict allowlist in LOOK_KEYS) can key off "has an autosave" honestly.
+   Never build that JSON by hand anywhere; drift of one byte re-creates
+   autosave-on-sight.
