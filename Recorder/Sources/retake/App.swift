@@ -241,7 +241,10 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     private let queue = DispatchQueue(label: "screen.capture")
     private let audioQueue = DispatchQueue(label: "screen.audio")
 
-    init(outputURL: URL, width: Int, height: Int, fps: Int, systemAudio: Bool) throws {
+    private let wideGamut: Bool
+
+    init(outputURL: URL, width: Int, height: Int, fps: Int, systemAudio: Bool, wideGamut: Bool) throws {
+        self.wideGamut = wideGamut
         // QuickTime container + movie fragments: the file stays playable even
         // if the process dies mid-recording — a crash loses seconds, not the
         // take. Chrome plays H.264/AAC in .mov (webcam.mov relies on that).
@@ -257,6 +260,23 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
                 AVVideoExpectedSourceFrameRateKey: fps,
                 AVVideoMaxKeyFrameIntervalKey: fps * 2,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ],
+            // Label what the captured display actually is — wide-gamut panels
+            // (every MacBook since 2016) get P3-D65, plain sRGB monitors get
+            // 709 primaries — with the sRGB transfer screen pixels use either
+            // way. The pixels themselves are never converted (see the capture
+            // config note); this block only stops players guessing. Guessing
+            // renders wide-gamut takes visibly desaturated, which shipped as
+            // Friction 002 item 11. sRGB transfer, NOT bt709: Apple's recorder
+            // converts content to bt709 and tags what it made; we keep raw
+            // pixels and tag what they are (decided by measurement, 2026-08-02
+            // A/B). The CoreVideo string is used for the transfer because its
+            // AVFoundation twin needs macOS 15.
+            AVVideoColorPropertiesKey: [
+                AVVideoColorPrimariesKey: wideGamut ? AVVideoColorPrimaries_P3_D65
+                                                    : AVVideoColorPrimaries_ITU_R_709_2,
+                AVVideoTransferFunctionKey: kCVImageBufferTransferFunction_sRGB as String,
+                AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
             ]
         ]
         input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
@@ -287,6 +307,13 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         cfg.showsCursor = false                       // ← the editor redraws it, smoothly
         cfg.queueDepth = 8
         cfg.pixelFormat = kCVPixelFormatType_32BGRA
+        // Deliberately NO cfg.colorSpaceName: capture must stay raw. Setting
+        // displayP3 here makes SCK CONVERT the panel's pixels into P3, and the
+        // A/B of 2026-08-02 measured that conversion visibly duller than the
+        // screen (31.8dB vs truth, against 35.4dB for untouched pixels) —
+        // because macOS's own screenshot pipeline treats the framebuffer
+        // values as P3 directly. We do what it does: keep the numbers, and
+        // declare the space honestly in the writer settings instead.
         if let r = sourceRect { cfg.sourceRect = r }
         if systemAudio {
             cfg.capturesAudio = true
@@ -315,7 +342,22 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
             return
         }
 
-        guard type == .screen, CMSampleBufferGetImageBuffer(sb) != nil else { return }
+        guard type == .screen, let img = CMSampleBufferGetImageBuffer(sb) else { return }
+        // Assert, don't convert: SCK attaches the display's ICC profile
+        // ("Color LCD") to every buffer, and if that disagrees with the
+        // writer's declared colour properties, VideoToolbox silently CONVERTS
+        // the pixels — measured 17% average saturation loss on 2026-08-02,
+        // where the untouched pixels lose ~3% to the codec. Overwriting the
+        // attachments to match the declaration makes source equal destination,
+        // so the encoder passes pixels through and only the label ships.
+        CVBufferRemoveAttachment(img, kCVImageBufferCGColorSpaceKey)
+        CVBufferSetAttachment(img, kCVImageBufferColorPrimariesKey,
+                              wideGamut ? kCVImageBufferColorPrimaries_P3_D65
+                                        : kCVImageBufferColorPrimaries_ITU_R_709_2, .shouldPropagate)
+        CVBufferSetAttachment(img, kCVImageBufferTransferFunctionKey,
+                              kCVImageBufferTransferFunction_sRGB, .shouldPropagate)
+        CVBufferSetAttachment(img, kCVImageBufferYCbCrMatrixKey,
+                              kCVImageBufferYCbCrMatrix_ITU_R_709_2, .shouldPropagate)
         // Only keep complete frames
         if let atts = CMSampleBufferGetSampleAttachmentsArray(sb, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
            let statusRaw = atts.first?[.status] as? Int,
@@ -482,6 +524,7 @@ struct Main {
         }
         let display = content.displays[opts.displayIndex]
         let displayBounds = CGDisplayBounds(display.displayID)
+        var captureDisplayID = display.displayID   // window mode may retarget this below
 
         if let q = opts.windowQuery {
             let ql = q.lowercased()
@@ -495,6 +538,7 @@ struct Main {
             // scale from the display that contains the window's center
             let center = CGPoint(x: win.frame.midX, y: win.frame.midY)
             let host = content.displays.first { CGDisplayBounds($0.displayID).contains(center) } ?? display
+            captureDisplayID = host.displayID
             let scale = scaleFor(displayID: host.displayID)
             filter = SCContentFilter(desktopIndependentWindow: win)
             pixelW = even(win.frame.width * scale); pixelH = even(win.frame.height * scale)
@@ -566,7 +610,8 @@ struct Main {
         do {
             screen = try ScreenRecorder(outputURL: bundle.appendingPathComponent("screen.mov"),
                                         width: pixelW, height: pixelH, fps: opts.fps,
-                                        systemAudio: opts.systemAudio)
+                                        systemAudio: opts.systemAudio,
+                                        wideGamut: CGDisplayCopyColorSpace(captureDisplayID).isWideGamutRGB)
             try await screen.start(filter: filter, width: pixelW, height: pixelH, fps: opts.fps,
                                    systemAudio: opts.systemAudio, sourceRect: sourceRect)
         } catch {

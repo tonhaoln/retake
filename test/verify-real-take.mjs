@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 
 const BUNDLE = process.argv[2];
 const EDITOR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'retake-editor.html');
@@ -20,6 +21,26 @@ const OUT = path.dirname(BUNDLE) + '/../export-' + path.basename(BUNDLE).replace
 
 const fails = [];
 const check = (n, ok, extra = '') => { console.log((ok ? 'ok   ' : 'FAIL ') + n + (extra ? '  ' + extra : '')); if (!ok) fails.push(n); };
+
+// Colour metadata: the recorder pins capture to Display P3 and must declare
+// it, or every player guesses bt709 and renders the take desaturated. An
+// untagged bundle here is a real defect (legacy pre-2026-08-02 bundles fail
+// honestly; retro-tag them, the command is in the vault's Friction 002 note).
+const screenFile = ['screen.mov', 'screen.mp4'].map(f => path.join(BUNDLE, f)).find(f => fs.existsSync(f));
+try {
+  const probe = JSON.parse(execFileSync('ffprobe', [
+    '-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=color_range,color_space,color_transfer,color_primaries',
+    '-of', 'json', screenFile,
+  ]).toString()).streams[0];
+  check('colour: primaries declared P3-D65', probe.color_primaries === 'smpte432', probe.color_primaries || 'missing');
+  check('colour: transfer declared sRGB', probe.color_transfer === 'iec61966-2-1', probe.color_transfer || 'missing');
+  check('colour: matrix declared bt709', probe.color_space === 'bt709', probe.color_space || 'missing');
+  check('colour: range declared tv', probe.color_range === 'tv', probe.color_range || 'missing');
+} catch (e) {
+  if (e.code === 'ENOENT') console.log('SKIP colour checks — ffprobe not installed (brew install ffmpeg to enable)');
+  else throw e;
+}
 
 const browser = await chromium.launch({ channel: 'chrome' });   // the real thing
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
