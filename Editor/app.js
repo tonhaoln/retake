@@ -1257,9 +1257,13 @@ function drawTimeline() {
     }
   }
 
-  // trim brackets
-  tctx.strokeStyle = '#e8eaf0'; tctx.lineWidth = 2;
-  for (const [t, dir] of [[S.trimIn, 1], [S.trimOut, -1]]) {
+  // trim brackets — lit while a drag sits exactly on a snap target, and only
+  // then: stateless, derived from equality rather than a flag someone forgets
+  tctx.lineWidth = 2;
+  for (const [t, dir, kind] of [[S.trimIn, 1, 'trimIn'], [S.trimOut, -1, 'trimOut']]) {
+    const snapped = tlDrag && tlDrag.kind === kind &&
+      (S.splits.includes(t) || t === S.video.currentTime);
+    tctx.strokeStyle = snapped ? '#4fd1c5' : '#e8eaf0';
     const x = T2X(t);
     tctx.beginPath();
     tctx.moveTo(x + dir * 5, 13); tctx.lineTo(x, 13); tctx.lineTo(x, 80); tctx.lineTo(x + dir * 5, 80);
@@ -1272,6 +1276,22 @@ function drawTimeline() {
   tctx.beginPath(); tctx.moveTo(px, 0); tctx.lineTo(px, H); tctx.stroke();
   tctx.fillStyle = '#ff6c7c';
   tctx.beginPath(); tctx.moveTo(px - 5, 0); tctx.lineTo(px + 5, 0); tctx.lineTo(px, 7); tctx.closePath(); tctx.fill();
+}
+
+// trim brackets snap to times the user chose deliberately — visible splits
+// and the playhead — within 8 screen px (screen px, never time units, so the
+// feel is the same at any timeline width). Alt bypasses. Snap first, clamp
+// after: the 0.5s minimum span always wins.
+function snapT(t, e) {
+  if (e.altKey) return t;
+  const cands = [S.video.currentTime,
+    ...S.splits.filter(s => s > S.trimIn && s < S.trimOut)];
+  let best = t, bd = 8;
+  for (const c of cands) {
+    const d = Math.abs(T2X(t) - T2X(c));
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
 }
 
 // timeline interactions
@@ -1339,8 +1359,8 @@ tl.addEventListener('pointermove', e => {
   const s = tlDrag.i != null ? S.segs[tlDrag.i] : null;
   switch (tlDrag.kind) {
     case 'scrub':  seekTo(t); break;
-    case 'trimIn':  S.trimIn = clamp(t, 0, S.trimOut - 0.5); break;
-    case 'trimOut': S.trimOut = clamp(t, S.trimIn + 0.5, S.duration); break;
+    case 'trimIn':  S.trimIn = clamp(snapT(t, e), 0, S.trimOut - 0.5); break;
+    case 'trimOut': S.trimOut = clamp(snapT(t, e), S.trimIn + 0.5, S.duration); break;
     case 'segL': s.t0 = clamp(t, 0, s.t1 - 0.3); break;
     case 'segR': s.t1 = clamp(t, s.t0 + 0.3, S.duration); break;
     case 'segM': {
