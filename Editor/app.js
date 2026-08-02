@@ -374,6 +374,23 @@ function updateZoomPanel() {
   $('zoomCount').textContent = S.segs.length
     ? `${S.segs.length} zoom${S.segs.length === 1 ? '' : 's'} on the timeline.`
     : 'No zooms yet — record with clicks enabled, or add one manually.';
+  updateHelpStrip();
+}
+
+// The hint strip reads the current selection: the same key does different
+// things by state, and the one that destroys footage (⌫ on a piece) must
+// never be the silent one. Prebuilt variants — the kbd chips are children,
+// so textContent would flatten them. The ? overlay stays the full reference.
+const HELP_HTML = {
+  none:  '✂ <kbd>S</kbd> split · <kbd>?</kbd> shortcuts',
+  seg:   '<kbd>⌫</kbd> delete · drag the ring to aim',
+  piece: '<kbd>⌫</kbd> cut this section',
+  cut:   '<kbd>⌫</kbd> restore',
+};
+function updateHelpStrip() {
+  const k = S.selSeg >= 0 ? 'seg' : S.selCut >= 0 ? 'cut' : S.selPiece >= 0 ? 'piece' : 'none';
+  const el = $('tlHelp');
+  if (el.dataset.state !== k) { el.dataset.state = k; el.innerHTML = HELP_HTML[k]; }
 }
 
 // ------------------------------------------------------------------ undo / redo (timeline + crop edits only)
@@ -518,7 +535,7 @@ function deleteSelection() {
     const c = cutsNorm()[S.selCut];
     if (c) { pushUndo(); S.cuts = cutsNorm().filter((_, i) => i !== S.selCut); }
     S.selCut = -1;
-    drawTimeline(); updateSizeEst(); updateTimeUI();
+    drawTimeline(); updateSizeEst(); updateTimeUI(); updateHelpStrip();
     return;
   }
   if (S.selPiece >= 0) {                     // cut a piece out
@@ -531,7 +548,7 @@ function deleteSelection() {
       if (S.video.currentTime >= p.t0 && S.video.currentTime <= p.t1) seekTo(p.t1 + 0.01);
     }
     S.selPiece = -1;
-    drawTimeline(); updateSizeEst(); updateTimeUI();
+    drawTimeline(); updateSizeEst(); updateTimeUI(); updateHelpStrip();
   }
 }
 
