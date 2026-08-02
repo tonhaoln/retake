@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "for t in core.test.mjs plain-video.test.mjs autosave-restore.test.mjs export-mp4-gif.test.mjs crop.test.mjs custom-aspect.test.mjs crop-keys.test.mjs help-strip.test.mjs trim-snap.test.mjs cursor-styles.test.mjs idle-fade.test.mjs cursor-motion-blur.test.mjs halo-motion-blur.test.mjs undo.test.mjs; do echo \"### $t\"; node $t || exit 1; done"
+    "test": "for t in core.test.mjs plain-video.test.mjs autosave-restore.test.mjs export-mp4-gif.test.mjs crop.test.mjs custom-aspect.test.mjs crop-keys.test.mjs help-strip.test.mjs trim-snap.test.mjs aim-drag.test.mjs cursor-styles.test.mjs idle-fade.test.mjs cursor-motion-blur.test.mjs halo-motion-blur.test.mjs undo.test.mjs; do echo \"### $t\"; node $t || exit 1; done"
   },
   "devDependencies": {
     "playwright": "^1.50.0"

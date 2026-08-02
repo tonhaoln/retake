@@ -3553,8 +3553,9 @@ function autoZoomFromClicks(quiet = false) {
   const downs = (S.cursor.clicks || []).filter(c => c.down && c.button === 0);
   const segs = [];
   const LEAD = S.set.zoomLead, HOLD = S.set.zoomHold, GAP = Math.max(1.0, S.set.zoomHold * 0.75);
+  const cr = cropRect();   // aims clamp into the crop like addZoomAt's — a click can land where the crop isn't
   for (const c of downs) {
-    const x = c.x * S.pointScale, y = c.y * S.pointScale;
+    const x = clamp(c.x * S.pointScale, cr.x, cr.x + cr.w), y = clamp(c.y * S.pointScale, cr.y, cr.y + cr.h);
     const last = segs[segs.length - 1];
     if (last && c.t - last.t1 < GAP) {
       last.t1 = Math.min(S.duration, c.t + HOLD);
@@ -3780,10 +3781,18 @@ function cropRect() {
 }
 
 // camera state at time t — blends all segment influences for buttery overlaps
+let aimOverride = false;   // true while the aim ring is dragged (preview pointerdown)
 function cameraAt(t) {
   const TRANS = S.set.zoomTrans;
   const cr = cropRect();
   const ccx = cr.x + cr.w / 2, ccy = cr.y + cr.h / 2;
+  // During an aim drag the preview drops to the full cropped frame: aim on
+  // the map, not through the telescope. The old zoomed-in drag was a feedback
+  // loop — aim moves camera, camera shifts content, same pointer maps to a
+  // new point. The override lives HERE, not in draw: motion blur samples
+  // cameraAt up to ten times a frame, and a draw-level override would tear
+  // between camera models.
+  if (aimOverride) return { z: 1, cx: ccx, cy: ccy };
   let wsum = 0, zx = 0, zy = 0, zz = 0;
   for (const s of S.segs) {
     let w = 0;
@@ -4605,14 +4614,14 @@ tl.addEventListener('dblclick', e => {
 });
 
 // preview: drag the zoom aim, or the crop rect in crop mode
-let aimDrag = false, cropDrag = null;
+let aimDrag = false, cropDrag = null, aimGrab = { gx: 0, gy: 0 };
 function previewPos(e) {
   const rect = preview.getBoundingClientRect();
   return [(e.clientX - rect.left) / rect.width * preview.width,
           (e.clientY - rect.top) / rect.height * preview.height];
 }
 preview.addEventListener('pointerdown', e => {
-  if (!S.loaded) return;
+  if (!S.loaded || S.exporting) return;   // a drag mid-export mutates the aim invisibly and dirties every frame after it
   if (S.cropMode) {
     preview.setPointerCapture(e.pointerId);
     const [mx, my] = previewPos(e);
@@ -4636,10 +4645,22 @@ preview.addEventListener('pointerdown', e => {
   preview.setPointerCapture(e.pointerId);
   pushUndo();   // aiming a zoom is an edit — one snapshot per drag
   aimDrag = true;
-  movAim(e);
+  // relative grab, no teleport: the press records an offset from the aim and
+  // moves it by deltas (the cropDrag gx/gy pattern). With the camera overridden
+  // to the full frame, every target is reachable in one gesture and the
+  // pointer-to-source mapping stays constant for the whole drag.
+  aimOverride = true;
+  const s = S.segs[S.selSeg];
+  const [px, py] = aimSrcPoint(e);
+  aimGrab = { gx: px - s.x, gy: py - s.y };
+  requestRender();
 });
-preview.addEventListener('pointercancel', () => { aimDrag = false; cropDrag = null; });
-preview.addEventListener('lostpointercapture', () => { aimDrag = false; cropDrag = null; });
+const endPreviewDrag = () => {
+  aimDrag = false; cropDrag = null;
+  if (aimOverride) { aimOverride = false; requestRender(); }   // back to the live camera
+};
+preview.addEventListener('pointercancel', endPreviewDrag);
+preview.addEventListener('lostpointercapture', endPreviewDrag);
 preview.addEventListener('pointermove', e => {
   if (aimDrag) { movAim(e); return; }
   if (!cropDrag || !S.cropMode) return;
@@ -4674,14 +4695,14 @@ preview.addEventListener('pointermove', e => {
   }
   requestRender();
 });
-preview.addEventListener('pointerup', () => { aimDrag = false; cropDrag = null; });
-function movAim(e) {
-  const s = S.segs[S.selSeg]; if (!s) return;
+preview.addEventListener('pointerup', endPreviewDrag);
+// pointer → source px, inverted through the CURRENT camera (constant during a
+// drag, because the override above pins it to the full-frame fit)
+function aimSrcPoint(e) {
   const rect = preview.getBoundingClientRect();
   const W = preview.width, H = preview.height;
   const mx = (e.clientX - rect.left) / rect.width * W;
   const my = (e.clientY - rect.top) / rect.height * H;
-  // invert content mapping at current camera
   const cr = cropRect();
   const vw = cr.w, vh = cr.h;
   const pad = S.set.pad / 100 * Math.min(W, H);
@@ -4689,8 +4710,14 @@ function movAim(e) {
   const rw = vw * scale, rh = vh * scale, rx = (W - rw) / 2, ry = (H - rh) / 2;
   const cam = cameraAt(S.video.currentTime);
   const sw = vw / cam.z, sh = vh / cam.z, sx = cam.cx - sw / 2, sy = cam.cy - sh / 2;
-  s.x = clamp(sx + (mx - rx) / rw * sw, cr.x, cr.x + cr.w);
-  s.y = clamp(sy + (my - ry) / rh * sh, cr.y, cr.y + cr.h);
+  return [sx + (mx - rx) / rw * sw, sy + (my - ry) / rh * sh];
+}
+function movAim(e) {
+  const s = S.segs[S.selSeg]; if (!s) return;
+  const cr = cropRect();
+  const [px, py] = aimSrcPoint(e);
+  s.x = clamp(px - aimGrab.gx, cr.x, cr.x + cr.w);
+  s.y = clamp(py - aimGrab.gy, cr.y, cr.y + cr.h);
   requestRender();
 }
 
