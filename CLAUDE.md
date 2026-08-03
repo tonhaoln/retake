@@ -39,8 +39,9 @@ loader keys off bundle contents, never the extension — do not add one).
    inlined via build.js.
 4. **Test contract**: element ids (exportBtn, exportFmt, exportQ, exportRes,
    exportFps, sizeEst, dirInput, timeline, splitBtn, cropW/cropH, cursorStyle data-v
-   buttons, cropAlignH/cropAlignV data-a buttons, tlHelp, saveLook, keysHint,
-   the sidebar section wrappers secFrame…secLook…) and global functions (pause,
+   buttons, cropAlignH/cropAlignV data-a buttons, tlHelp, saveLook, lookHistory
+   (+ .look-row buttons), keysHint, the sidebar section wrappers
+   secFrame…secLook…) and global functions (pause,
    seekTo, addZoomAt, splitAtPlayhead, deleteSelection, undo, cameraAt,
    outDuration, out2src, enterCropMode…) are load-bearing. Keep native <input>
    elements native (tests drive them with value + dispatchEvent('input')).
@@ -55,7 +56,10 @@ loader keys off bundle contents, never the extension — do not add one).
    floor at 4.96 on `--s1`); canvas text carries its own hardcoded hexes.
 7. **Undo**: structuredClone snapshots via pushUndo() BEFORE mutations; one
    push per drag (pointerdown); baseline seeded after load (undoReady).
-   Any new edit operation must call pushUndo().
+   Any new edit operation must call pushUndo(). Scope: undo covers timeline
+   and crop edits (what editSnapshot holds) — style keys are outside it by
+   design, so style-only operations (look apply/promote, sliders, toggles)
+   must NOT push: a geometry-identical snapshot burns a no-op ⌘Z.
 8. Text nodes JS writes to (toastMsg, sizeEst, time, .lab spans, exportBtn
    label) — check before restructuring markup around them. The hint strip
    (#tlHelp) is innerHTML variants keyed by selection state, never textContent.
