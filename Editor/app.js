@@ -1843,14 +1843,16 @@ function applyDefaultLook() {
 // — no pushUndo here: it would burn a no-op ⌘Z and force a flushSave.
 function promoteLook(i) {
   if (!S.loaded) return;   // pre-load rows are silent no-ops, like #saveLook
-  const hist = readLookHistory();
-  const entry = hist[i];
+  const entry = readLookHistory()[i];
   if (!entry) return;
   const { savedAt, ...blob } = entry;   // savedAt never enters retake:defaultLook
-  try {
-    localStorage.setItem('retake:defaultLook', JSON.stringify(blob));
-    localStorage.setItem('retake:lookHistory', JSON.stringify(pushLook(hist, { ...blob, savedAt: Date.now() })));
-  } catch (e) { return; }
+  // The list is a RECORD, so promoting must not reorder it: order means when
+  // it was saved, the marker means which one is current. A history that
+  // shuffles when read stops being a history — MRU-on-click is the classic
+  // adaptive-menus failure (positions never stabilise, spatial memory dies).
+  // Only saveDefaultLook writes retake:lookHistory; a save is a new event
+  // in the timeline, so its unshift is legitimate.
+  try { localStorage.setItem('retake:defaultLook', JSON.stringify(blob)); } catch (e) { return; }
   applyLookBlob(blob);
   renderLookHistory();
   toast(`«${(BGS[blob.bg] || BGS[0]).n} · ${CURSOR_NAMES[blob.cursorStyle] || blob.cursorStyle}» is your default again — applied to this recording.`, 3200, 'ok');
@@ -1869,12 +1871,15 @@ function lookLabel(look) {
 function renderLookHistory() {
   const box = $('lookHistory');
   const hist = readLookHistory();
+  let cur = null;
+  try { cur = JSON.parse(localStorage.getItem('retake:defaultLook')); } catch (e) {}
   box.style.display = hist.length ? '' : 'none';
   box.innerHTML = '';
   hist.forEach((look, i) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'look-row';
+    if (cur && lookEq(look, cur)) { b.classList.add('current'); b.title = 'Your current default'; }
     const chip = document.createElement('span');
     chip.className = 'look-chip';
     chip.style.background = `linear-gradient(135deg, ${(BGS[look.bg] || BGS[0]).s.join(',')})`;

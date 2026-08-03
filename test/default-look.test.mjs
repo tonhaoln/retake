@@ -80,6 +80,9 @@ let hist = await page.evaluate(() => JSON.parse(localStorage.getItem('retake:loo
 check('history holds the first save', hist.length === 1 && hist[0].pad === 12 && !!hist[0].savedAt);
 let rows = await page.evaluate(() => [...document.querySelectorAll('#lookHistory .look-row')].map(b => b.textContent));
 check('row labels self-derive from the blob', rows.length === 1 && rows[0].startsWith('Orchid · Halo'));
+const marker0 = await page.evaluate(() =>
+  [...document.querySelectorAll('#lookHistory .look-row')].findIndex(b => b.classList.contains('current')));
+check('the current marker sits on the saved row', marker0 === 0);
 
 // ---- 7. save adds a row; an unchanged re-save deduplicates (this is the
 // assertion a naive savedAt-inclusive compare fails)
@@ -96,17 +99,21 @@ await page.click('#saveLook');
 hist = await page.evaluate(() => JSON.parse(localStorage.getItem('retake:lookHistory')));
 check('cap holds at three, oldest evicted', hist.length === 3 && hist.map(h => h.pad).join() === '9,8,5');
 
-// ---- 9. promoting the MIDDLE row: [9,8,5] → [8,9,5], no duplicate, no
-// innocent eviction (the landmine the review caught in the naive design)
+// ---- 9. promoting the MIDDLE row: the list is a record, so the order must
+// NOT change (MRU-on-click is the adaptive-menus failure) — only the marker
+// moves, the default key updates, and the look applies
 await page.evaluate(() => document.querySelectorAll('#lookHistory .look-row')[1].click());
 const promoted = await page.evaluate(() => ({
   hist: JSON.parse(localStorage.getItem('retake:lookHistory')).map(h => h.pad),
   def: JSON.parse(localStorage.getItem('retake:defaultLook')),
   pad: S.set.pad,
+  marker: [...document.querySelectorAll('#lookHistory .look-row')].findIndex(b => b.classList.contains('current')),
+  markers: document.querySelectorAll('#lookHistory .look-row.current').length,
 }));
-check('promoting the middle row reorders without duplicating', promoted.hist.join() === '8,9,5');
+check('promoting leaves the history order untouched', promoted.hist.join() === '9,8,5');
 check('promoted blob becomes the default without savedAt', promoted.def.pad === 8 && !('savedAt' in promoted.def));
 check('promoting applies to the current recording', promoted.pad === 8);
+check('exactly one marker, moved to the promoted row', promoted.marker === 1 && promoted.markers === 1);
 
 // ---- 10. incumbent rescue: a pre-history default enters history untimed
 await page.evaluate(() => {
