@@ -1772,6 +1772,27 @@ setInterval(() => {
 const LOOK_KEYS = ['bg', 'pad', 'radius', 'shadow', 'cursorStyle', 'curSize', 'curSmooth',
   'ripples', 'clickSnd', 'mblur', 'hideIdle', 'idleAfter', 'spotColor', 'spotOpacity',
   'zoomLead', 'zoomHold', 'zoomTrans', 'quality'];
+// History plumbing. savedAt lives ONLY inside retake:lookHistory entries —
+// it never enters retake:defaultLook, and every comparison strips it first,
+// or "saved the same look twice" reads as two different looks.
+const lookEq = (a, b) => {
+  const strip = ({ savedAt, ...rest }) => rest;
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
+};
+// One shared mover for save, rescue and promote. Filters ALL matches, never
+// just the head: dedup-against-head-only turns [A,B,C] + promote-B into
+// [B,A,B] with C evicted.
+function pushLook(history, entry) {
+  const out = history.filter(h => !lookEq(h, entry));
+  out.unshift(entry);
+  return out.slice(0, 3);
+}
+function readLookHistory() {
+  try {
+    const h = JSON.parse(localStorage.getItem('retake:lookHistory'));
+    return Array.isArray(h) ? h : [];
+  } catch (e) { return []; }   // corrupt storage renders as empty, never throws
+}
 function saveDefaultLook() {
   if (!S.loaded) return;
   const look = { v: 1 };
@@ -1780,18 +1801,88 @@ function saveDefaultLook() {
   // export format/res/fps are DOM-only by design (putting them in S.set would
   // silently make them per-recording); they live in the look blob alone
   look.fmt = $('exportFmt').value; look.res = $('exportRes').value; look.fps = $('exportFps').value;
-  try { localStorage.setItem('retake:defaultLook', JSON.stringify(look)); } catch (e) { return; }
+  // History maintenance happens HERE and in promoteLook only — never at load:
+  // rule 9 says opening writes nothing, and autosave-restore.test.mjs assumes
+  // the recording autosave is the only retake: key alive during that test.
+  let hist = readLookHistory();
+  if (!hist.length) {
+    // rescue the incumbent: a pre-history default must not vanish silently
+    // (no savedAt on it — its row renders without a time segment)
+    let prev = null;
+    try { prev = JSON.parse(localStorage.getItem('retake:defaultLook')); } catch (e) {}
+    if (prev && !lookEq(prev, look)) hist = pushLook(hist, prev);
+  }
+  hist = pushLook(hist, { ...look, savedAt: Date.now() });
+  try {
+    localStorage.setItem('retake:defaultLook', JSON.stringify(look));
+    localStorage.setItem('retake:lookHistory', JSON.stringify(hist));
+  } catch (e) { return; }
+  renderLookHistory();
   toast('This look is now the default for new recordings.', 2600, 'ok');
 }
-function applyDefaultLook() {
-  let look = null;
-  try { look = JSON.parse(localStorage.getItem('retake:defaultLook')); } catch (e) {}
-  if (!look) return;
+// shared apply path: the default at load and a promoted history row both land
+// here, so the dim→Halo normalisation covers stored and rescued blobs alike
+// (the load-time migration only ever guarded per-recording autosaves)
+function applyLookBlob(look) {
+  if (look.cursorStyle === 'dim') look.cursorStyle = 'ring';
   for (const k of LOOK_KEYS) if (k in look) S.set[k] = look[k];
   if (look.fmt) $('exportFmt').value = look.fmt;
   if (look.res) $('exportRes').value = look.res;
   if (look.fps) $('exportFps').value = look.fps;
   syncUIFromSettings();
+  updateSizeEst();
+}
+function applyDefaultLook() {
+  let look = null;
+  try { look = JSON.parse(localStorage.getItem('retake:defaultLook')); } catch (e) {}
+  if (!look) return;
+  applyLookBlob(look);
+}
+// Promoting mutates only style keys, which editSnapshot deliberately excludes
+// (rule 7 covers timeline/crop edits; style has never been undoable anywhere)
+// — no pushUndo here: it would burn a no-op ⌘Z and force a flushSave.
+function promoteLook(i) {
+  if (!S.loaded) return;   // pre-load rows are silent no-ops, like #saveLook
+  const hist = readLookHistory();
+  const entry = hist[i];
+  if (!entry) return;
+  const { savedAt, ...blob } = entry;   // savedAt never enters retake:defaultLook
+  try {
+    localStorage.setItem('retake:defaultLook', JSON.stringify(blob));
+    localStorage.setItem('retake:lookHistory', JSON.stringify(pushLook(hist, { ...blob, savedAt: Date.now() })));
+  } catch (e) { return; }
+  applyLookBlob(blob);
+  renderLookHistory();
+  toast(`«${(BGS[blob.bg] || BGS[0]).n} · ${CURSOR_NAMES[blob.cursorStyle] || blob.cursorStyle}» is your default again — applied to this recording.`, 3200, 'ok');
+}
+const CURSOR_NAMES = { arrow: 'Arrow', dot: 'Dot', ring: 'Halo', none: 'Hidden' };
+function lookLabel(look) {
+  const bits = [(BGS[look.bg] || BGS[0]).n, CURSOR_NAMES[look.cursorStyle] || look.cursorStyle];
+  if (look.savedAt) {   // the rescued incumbent has no savedAt: no time segment
+    const d = new Date(look.savedAt), now = new Date();
+    bits.push(d.toDateString() === now.toDateString()
+      ? d.toTimeString().slice(0, 5)
+      : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
+  }
+  return bits.join(' · ');
+}
+function renderLookHistory() {
+  const box = $('lookHistory');
+  const hist = readLookHistory();
+  box.style.display = hist.length ? '' : 'none';
+  box.innerHTML = '';
+  hist.forEach((look, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'look-row';
+    const chip = document.createElement('span');
+    chip.className = 'look-chip';
+    chip.style.background = `linear-gradient(135deg, ${(BGS[look.bg] || BGS[0]).s.join(',')})`;
+    b.appendChild(chip);
+    b.appendChild(document.createTextNode(lookLabel(look)));
+    b.onclick = () => promoteLook(i);
+    box.appendChild(b);
+  });
 }
 $('saveLook').onclick = saveDefaultLook;
 
@@ -2095,3 +2186,4 @@ async function exportGif() {
 sizeTimeline();
 drawTimeline();
 updateSizeEst();   // the chip states its defaults before anything is loaded
+renderLookHistory();   // reads only — a corrupt key renders as no rows, never a throw
