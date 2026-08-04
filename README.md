@@ -5,12 +5,8 @@
 
 ![The Retake editor at work, itself recorded and polished with Retake: framing sliders reshape the padding and shadow around a recorded app, a zoom is added at the playhead, and the preview dives into the spot it was aimed at.](assets/demo.gif)
 
-That GIF is Retake editing a recording — and the GIF itself was recorded,
-edited and exported with Retake. The tool is its own demo.
-
-Retake exists because I couldn't justify the Screen Studio subscription
-anymore, so I built my own and gave it away. Claude wrote most of the code;
-the design calls, the QA and the taste are mine. My client work ships with it.
+The GIF is Retake editing a recording, and was itself recorded, edited and
+exported with Retake.
 
 A free, two-part replacement for Screen Studio:
 
