@@ -3,6 +3,15 @@
 [![tests](https://github.com/tonhaoln/retake/actions/workflows/test.yml/badge.svg)](https://github.com/tonhaoln/retake/actions/workflows/test.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+![The Retake editor at work, itself recorded and polished with Retake: framing sliders reshape the padding and shadow around a recorded app, a zoom is added at the playhead, and the preview dives into the spot it was aimed at.](assets/demo.gif)
+
+That GIF is Retake editing a recording — and the GIF itself was recorded,
+edited and exported with Retake. The tool is its own demo.
+
+Retake exists because I couldn't justify the Screen Studio subscription
+anymore, so I built my own and gave it away. Claude wrote most of the code;
+the design calls, the QA and the taste are mine. My client work ships with it.
+
 A free, two-part replacement for Screen Studio:
 
 1. **Recorder** (`retake`) — a tiny native macOS tool that records your screen
@@ -90,6 +99,8 @@ Privacy note: by default the recorder logs *when* keys are pressed but never
 
 ## Editing
 
+![The Retake editor: a recording loaded on a painterly background image, framing and zoom controls in the sidebar, two zooms and the click markers visible on the timeline.](assets/hero.png)
+
 1. Open `retake-editor.html` in **Chrome** (or Edge/Arc — anything Chromium).
    Tip: keep it in your Dock — it's just a file.
 2. Drag the `.take` folder into the window. (Recordings made before the
@@ -115,20 +126,28 @@ Privacy note: by default the recorder logs *when* keys are pressed but never
      optional click sounds mixed into the export.
    - **Crop**: Frame → Crop… — drag a box (or snap to 16:9 / 4:3 / 1:1 / 9:16, or set a custom ratio like 21 : 9)
      to trim away the dock, menu bar, or anything else. Zooms and the cursor
-     follow the crop automatically.
+     follow the crop automatically. Arrow keys nudge the box one pixel (⇧ for
+     ten, ⌥ resizes), and the align buttons snap it flush or centred.
    - **Cut sections**: press ✂ Split (or S) at the playhead, click a piece,
      press ⌫ to remove it. Click a hatched cut to select it and ⌫ restores it.
      Audio, zooms and click sounds all stay in sync across cuts.
    - **Halo cursor**: a clearly-visible tinted disc around the cursor (white by
      default; tints + glow strength in the Cursor panel), no arrow on top.
-   - **Trim**: drag the ⟨ ⟩ brackets on the timeline.
+   - **Trim**: drag the ⟨ ⟩ brackets on the timeline — they snap to your
+     splits and the playhead (hold ⌥ to drag free).
+   - **Your look**: "Make this my default style" makes the current settings the
+     default for every recording that opens without edits of its own (edited
+     recordings keep theirs). The last three saved looks stack under the
+     button; clicking one makes it the default again and applies it.
    - **Undo**: ⌘Z / ⇧⌘Z walks timeline and crop edits back and forward (not
      while you're inside crop mode — Esc cancels that instead).
    - Press **?** for all keyboard shortcuts.
 4. The chip next to **Export** shows your settings (format · resolution · fps ·
    ≈ size) — click it to change format (MP4/GIF), quality, resolution and frame
    rate. Hit **Export**; rendering runs in the browser at roughly real-time
-   speed and the file downloads when done. (GIF ignores the resolution picker
+   speed (measured: a five-second clip with zooms and motion blur exports in
+   about six seconds at 1080p30 on an Apple-silicon MacBook) and the file
+   downloads when done. (GIF ignores the resolution picker
    and renders at up to 960px / 15 fps — right for READMEs and PRs.)
 
 Your edits are **saved automatically** (in the browser, per recording) — close the
@@ -143,6 +162,38 @@ Screen Studio's polish comes from *not* baking the cursor into the recording.
 Retake does the same: the screen is captured cursor-free, the cursor path is
 recorded as data, and the editor re-renders a smoothed, resizable cursor on top —
 which is also why zooming stays tack-sharp on the pointer.
+
+## Known limitations
+
+Named here so nobody has to discover them:
+
+- **Wide-gamut colour survives recording but clips at export.** Takes are
+  tagged with your display's real colour space (Display P3 on most modern
+  Macs) and play back with correct colour everywhere. The editor composites
+  in sRGB, so the small slice of colours outside sRGB is gently clipped in
+  exports. Full-gamut export is on the list.
+- **Deleting one auto-zoom doesn't survive the timing sliders.** While other
+  auto-zooms remain, touching Lead-in or Hold rebuilds the whole auto set and
+  the deleted one comes back. Deleting them all sticks, and zooms you added
+  by hand are never touched.
+- **Custom background images aren't saved between sessions** — re-pick after
+  reopening. Gradients and every other setting persist.
+- **Your edits and your default look live in one browser's storage.** Edit in
+  Chrome, reopen in Arc, and they won't follow you. A project file inside the
+  `.take` folder is the planned fix (see Roadmap).
+- **The timeline is a drawn canvas**: fully usable by pointer and keyboard
+  shortcuts, invisible to screen readers. The sidebar controls are ordinary
+  accessible elements; the timeline itself isn't yet.
+
+## Roadmap
+
+In the order they're planned — planned, not promised:
+
+1. **Project file in the folder** — edits move out of browser storage into
+   the `.take` itself, so they travel with the recording.
+2. **MCP server** — drive the editor from an agent: *"open this morning's
+   take, zoom in on every click, export a GIF for the PR"* typed over coffee.
+3. **Menu-bar app**, then Homebrew, then a signed DMG if the project earns it.
 
 ## Privacy
 
