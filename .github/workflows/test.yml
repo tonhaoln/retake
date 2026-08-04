@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# This workflow runs code from forked pull requests. It gets read access and no
+# secrets, and it must stay that way: a secret here would be readable by anyone
+# who opens a PR.
+permissions:
+  contents: read
+
 jobs:
   editor:
     name: Editor suite (Chromium)

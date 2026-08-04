@@ -1,4 +1,4 @@
-# Retake — your own Screen Studio
+# Retake: a free alternative to Screen Studio
 
 [![tests](https://github.com/tonhaoln/retake/actions/workflows/test.yml/badge.svg)](https://github.com/tonhaoln/retake/actions/workflows/test.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,14 +13,18 @@ A free, two-part replacement for Screen Studio:
 1. **Recorder** (`retake`) — a tiny native macOS tool that records your screen
    *without* the cursor, logs every cursor movement and click, and can record your
    webcam + microphone at the same time. Everything lands in one `.take` folder.
-2. **Editor** (`retake-editor.html`) — a single HTML file that runs in Chrome.
-   Drop the `.take` folder in, press **Auto** and it builds zoom-ins from your clicks,
-   redraws a buttery-smooth cursor, adds the gradient framing / rounded corners / shadow,
-   overlays your webcam bubble, and exports a polished MP4. No install, no server,
-   no account, works offline.
+2. **Editor** (`retake-editor.html`) — one HTML file that runs in Chrome. Nothing to
+   install, no server, no account, works offline. Drop the `.take` folder in, press
+   **Auto** and it builds zoom-ins from your clicks, redraws a buttery-smooth cursor,
+   adds the gradient framing / rounded corners / shadow, overlays your webcam bubble,
+   and exports a polished MP4. It is one readable file, so you can check for yourself
+   that nothing leaves your machine.
 
 The editor also accepts **any plain video** (QuickTime recordings, OBS captures…) —
 without auto-zoom or the redrawn cursor, which need the recorder's data.
+
+The recorder is macOS only. The editor is a plain HTML file, so it runs anywhere a
+browser does.
 
 ---
 
@@ -43,10 +47,15 @@ you grant your terminal app (Terminal / iTerm / Warp) these, under
 **System Settings → Privacy & Security**:
 
 - **Screen Recording** — required, for the capture itself
-- **Accessibility** — recommended, lets it see your clicks (that's what powers auto-zoom)
+- **Accessibility** — recommended, for clicks (that's what powers auto-zoom) and the ⌃⎋ stop hotkey
 - **Camera / Microphone** — only if you use `--webcam` / `--mic`
 
 After granting Screen Recording you must quit and reopen the terminal app once.
+
+What Accessibility actually grants, said plainly: while a recording runs, macOS
+hands Retake every click and keypress on the machine, not only the app you are
+recording. Retake keeps click positions and the *times* of keypresses. It never
+keeps which key, unless you pass `--keys`. Details in [Privacy](#privacy).
 
 ### Or build it yourself (about 2 minutes)
 
@@ -89,6 +98,10 @@ cleanly; a hard crash costs you the last few seconds, not the whole session.
 
 Privacy note: by default the recorder logs *when* keys are pressed but never
 *which* keys. Full detail in [Privacy](#privacy) below.
+
+System audio is recorded by default; `--no-system-audio` turns it off. Worth
+knowing if you record calls: the rules on recording other people vary by country
+and, in Australia, by state.
 
 ## Editing
 
@@ -197,10 +210,16 @@ shipped editor are four comments crediting where code came from.
 
 **Keystrokes are timings, not keys.** By default `cursor.json` contains
 exactly four things: cursor positions over time, click positions and times,
-the *timestamps* of keypresses, and a flag saying whether click capture
-worked. The timestamps exist so the editor can hold a zoom while you type
-instead of drifting away mid-sentence. Which key you pressed is never
-recorded.
+the *times* of keypresses rounded to the nearest 50ms, and a flag saying
+whether click capture worked. Those times are recorded for a planned feature,
+holding a zoom steady while you type instead of letting it drift away
+mid-sentence; the editor does not read them yet. Which key you pressed is
+never recorded.
+
+Granting Accessibility means the recorder sees every keypress on the machine
+while it runs, including in apps you are not recording. It listens only, it
+cannot alter or swallow what you type, and without `--keys` the key itself is
+discarded the instant it arrives.
 
 `--keys` is the explicit opt-in that also records the key labels, so the
 editor can draw the on-screen keystroke overlay. Don't use it while typing

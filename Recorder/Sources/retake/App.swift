@@ -202,12 +202,19 @@ final class CursorLogger {
 
     func writeJSON(to url: URL, videoStart: Double) throws {
         func rel(_ t: Double) -> Double { (t - videoStart).rounded(toPlaces: 4) }
+        // Key times are bucketed to 50ms, cursor and click times are not. The tap is
+        // session-wide, so this array covers typing done in apps that are not being
+        // recorded, and inter-keystroke gaps at sub-millisecond resolution are a
+        // keystroke-dynamics side channel: they carry length and typing rhythm even
+        // though the key itself is never stored. Nothing downstream needs better than
+        // a frame, so precision here is cost without benefit.
+        func relKey(_ t: Double) -> Double { (((t - videoStart) / 0.05).rounded() * 0.05).rounded(toPlaces: 2) }
         var root: [String: Any] = [:]
         root["samples"] = queue.sync { samples.map { [rel($0.0), $0.1.rounded(toPlaces: 2), $0.2.rounded(toPlaces: 2)] } }
         root["clicks"]  = queue.sync { clicks.map { ["t": rel($0.t), "x": $0.x.rounded(toPlaces: 2), "y": $0.y.rounded(toPlaces: 2), "button": $0.button, "down": $0.down] } }
-        root["keys"]    = queue.sync { keyTimes.map { rel($0) } }
+        root["keys"]    = queue.sync { keyTimes.map { relKey($0) } }
         if captureKeys {
-            root["keystrokes"] = queue.sync { keystrokes.map { [rel($0.0), $0.1] } }
+            root["keystrokes"] = queue.sync { keystrokes.map { [relKey($0.0), $0.1] } }
         }
         root["clicksCaptured"] = tapWorked
         let data = try JSONSerialization.data(withJSONObject: root)

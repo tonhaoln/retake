@@ -26,7 +26,10 @@ jobs:
           cp Editor/dist-retake-editor.html dist/retake-editor.html
           tar -czf retake-macos-arm64.tar.gz -C dist retake retake-editor.html
 
-      - uses: softprops/action-gh-release@v2
+      # Pinned to a commit, not a tag: this is the one job with write access, and
+      # a tag can be moved by whoever owns the action. This is v2.6.2, which is
+      # what the v2 tag pointed at on 2026-08-04. (v3 exists; upgrade deliberately.)
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           files: retake-macos-arm64.tar.gz
           body: |
