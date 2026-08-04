@@ -44,7 +44,11 @@ Installed.
   Record   retake
   Edit     open "$APP_DIR/retake-editor.html" in Chrome
 
-The first recording will ask for Screen Recording permission (and
-Accessibility, which is what powers auto-zoom). Grant them to your terminal
-app, then quit and reopen it once.
+The first recording will ask for Screen Recording. Accessibility is optional
+but recommended: it powers auto-zoom and the ⌃⎋ stop hotkey. It also means
+Retake sees every click and keypress while a recording runs, including in
+apps you are not recording. It keeps click positions and the times of
+keypresses, never which key, unless you pass --keys.
+
+Grant them to your terminal app, then quit and reopen it once.
 EOF
