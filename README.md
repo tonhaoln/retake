@@ -206,6 +206,9 @@ recorded.
 editor can draw the on-screen keystroke overlay. Don't use it while typing
 passwords. A default recording *cannot* contain your keystrokes.
 
+If you would rather the recorder never watched the keyboard at all, say so in
+an issue and a `--no-input` flag is a short patch away.
+
 ## Troubleshooting
 
 - **"Could not listen for clicks"** → grant Accessibility to your terminal, rerun.
