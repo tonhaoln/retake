@@ -20,7 +20,7 @@ loader keys off bundle contents, never the extension — do not add one).
   ⚠️ ALWAYS run build.js before testing — tests load the dist file.
   Never hand-edit the root file or the dist; edit the sources.
 - `test/` — Playwright suite. `*.test.mjs` files are gates (`npm test` runs
-  all sixteen); `shot-*.mjs` are screenshot helpers, not gates. Paths resolve
+  all seventeen); `shot-*.mjs` are screenshot helpers, not gates. Paths resolve
   through `test/paths.mjs`, so the suite runs on any checkout. Setup once:
   `npm install` and `npx playwright install chromium`. Run: `npm test` from
   `test/`. Fixture: `test/fixture.take` (VP9/Opus because Playwright's
@@ -70,3 +70,11 @@ loader keys off bundle contents, never the extension — do not add one).
    strict allowlist in LOOK_KEYS) can key off "has an autosave" honestly.
    Never build that JSON by hand anywhere; drift of one byte re-creates
    autosave-on-sight.
+10. **The load path refuses or degrades, never throws (2026-08-04)**:
+   `loadFromFiles` guards on `S.exporting` first — the export loop yields
+   between frames, so an unguarded drop swaps the video under the running
+   encoder (proven, not theorised: the fileKey changed mid-encode). And a
+   damaged `meta.json`/`cursor.json` costs only its own feature, parsed
+   independently inside try/catch, with the loss named in the load toast.
+   Both are covered by `load-guards.test.mjs`. Callers only
+   `.catch(console.error)`, so anything that throws in here is invisible.

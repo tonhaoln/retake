@@ -3331,12 +3331,27 @@ function bgGradient(ctx, W, H) {
 
 // ------------------------------------------------------------------ loading
 async function loadFromFiles(fileList) {
+  // The export loop yields between frames (a seek and a setTimeout each), so a
+  // drop or an Open mid-export lands inside a running encode and swaps the
+  // video, duration and cuts under it — what downloads is then a splice of two
+  // recordings. Every other mutating handler guards on S.exporting; this is the
+  // load path's copy of that guard, and it covers drop and both file inputs.
+  if (S.exporting) {
+    toast('Export in progress — let it finish or cancel it before opening another recording.', 4200, 'warn');
+    return;
+  }
   const files = {};
   for (const f of fileList) files[f.name.toLowerCase()] = f;
 
+  // A damaged data file costs its own feature, never the whole take: the editor
+  // already runs meta-less and cursor-less (that is the plain-video path), so a
+  // half-copied bundle opens as a video with less polish. Unguarded, these two
+  // parses threw inside a promise whose only handler was console.error, and the
+  // drop looked like it had done nothing at all.
   let meta = null, cursor = null;
-  if (files['meta.json'])   meta = JSON.parse(await files['meta.json'].text());
-  if (files['cursor.json']) cursor = JSON.parse(await files['cursor.json'].text());
+  const damaged = [];
+  if (files['meta.json'])   { try { meta   = JSON.parse(await files['meta.json'].text()); }   catch (e) { damaged.push('meta.json'); } }
+  if (files['cursor.json']) { try { cursor = JSON.parse(await files['cursor.json'].text()); } catch (e) { damaged.push('cursor.json'); } }
 
   // pick the screen video
   let screenFile = null;
@@ -3477,13 +3492,22 @@ async function loadFromFiles(fileList) {
   // undo baseline: whatever state the recording opened with is the floor
   undoStack.length = 0; redoStack.length = 0; undoReady = true;
   updateSizeEst();
-  if (restored) toast('Welcome back — restored your previous edits for this recording.');
+  // Damage rides in the load toast rather than its own: a second toast would
+  // simply overwrite the first, and the summary is what tells you the take
+  // survived. Naming the file and what it cost beats a console error nobody opens.
+  const dmg = damaged.length
+    ? ' ' + damaged.map(n => n === 'meta.json'
+        ? 'meta.json is damaged, so this opened as a plain video.'
+        : 'cursor.json is damaged, so there is no auto-zoom or smoothed cursor.').join(' ')
+    : '';
+  if (restored) toast('Welcome back — restored your previous edits for this recording.' + dmg, dmg ? 6000 : 3200, dmg ? 'warn' : '');
   else {
     const bits = [`${video.videoWidth}×${video.videoHeight}`, fmtT(video.duration)];
     const nClicks = cursor ? (cursor.clicks || []).filter(c => c.down).length : 0;
     if (cursor) bits.push(`${nClicks} click${nClicks === 1 ? '' : 's'}`);
     if (webcam) bits.push('webcam');
-    toast('Loaded — ' + bits.join(' · ') + (nClicks ? '. Auto can zoom your clicks.' : ''), nClicks ? 4500 : 3200);
+    toast('Loaded — ' + bits.join(' · ') + (nClicks ? '. Auto can zoom your clicks.' : '') + dmg,
+      dmg ? 6000 : (nClicks ? 4500 : 3200), dmg ? 'warn' : '');
   }
 }
 
