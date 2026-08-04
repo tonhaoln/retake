@@ -78,3 +78,23 @@ loader keys off bundle contents, never the extension — do not add one).
    independently inside try/catch, with the loss named in the load toast.
    Both are covered by `load-guards.test.mjs`. Callers only
    `.catch(console.error)`, so anything that throws in here is invisible.
+11. **The tap is session-wide; "privacy" is about what is STORED (2026-08-04)**:
+   the recorder installs a `.cgSessionEventTap` whose mask always includes
+   `.keyDown`, with or without `--keys`. While a recording runs the process
+   therefore *sees* every keypress on the machine, including in apps that are
+   not being recorded. It is `.listenOnly` (it cannot alter or swallow events),
+   and without `--keys` the keycode is discarded on arrival. Both halves of
+   that are load-bearing: never write a claim implying the tool cannot see
+   keystrokes, and never re-describe Accessibility as "for clicks" — the
+   README's Permissions section states what the grant hands over, on purpose,
+   because that is the moment the user decides. Key times are bucketed to 50ms
+   (`relKey`) because sub-millisecond gaps are a keystroke-dynamics side
+   channel; don't restore precision without a consumer that needs it.
+   Note `cursor.keys` currently has NO consumer — the editor reads
+   `cursor.keystrokes` (`--keys` only) and never the timings array.
+12. **The README is part of the shipped artifact.** A claim about behaviour is
+   checked against the source that implements it, never against a previous
+   version of the README. Two claims survived for days by being copied
+   forward: an export-speed figure nobody had measured, and a hold-the-zoom-
+   while-typing feature that justified collecting key timings and does not
+   exist in the code.
