@@ -1582,6 +1582,15 @@ window.addEventListener('keydown', e => {
   else if (e.key === '?') { toggleShortcuts(); }
   else if (e.key === 'ArrowLeft')  { pause(); seekTo(S.video.currentTime - (e.shiftKey ? 1 : 1/30)); }
   else if (e.key === 'ArrowRight') { pause(); seekTo(S.video.currentTime + (e.shiftKey ? 1 : 1/30)); }
+  // Home/End land on the edges of the OUTPUT, not the source. The timeline
+  // draws the whole source with the trimmed ends shaded, but the thing being
+  // made is what survives trim + cuts — which is why the readout above already
+  // counts in output time. out2src(0) is the first surviving frame, so a trim
+  // in at 0:05 with a cut running 0:05→0:08 sends Home to 0:08, not either
+  // number. preventDefault because both keys otherwise scroll the sidebar.
+  // Seeking is not an edit: no pushUndo (rule 7 — editSnapshot holds no playhead).
+  else if (e.key === 'Home') { e.preventDefault(); pause(); seekTo(out2src(0)); }
+  else if (e.key === 'End')  { e.preventDefault(); pause(); seekTo(out2src(outDuration())); }
 });
 $('splitBtn').onclick = splitAtPlayhead;
 function toggleShortcuts() { $('shortcuts').classList.toggle('open'); }
