@@ -6,7 +6,7 @@
 ![The Retake editor at work, itself recorded and polished with Retake: framing sliders reshape the padding and shadow around a recorded app, a zoom is added at the playhead, and the preview dives into the spot it was aimed at.](assets/demo.gif)
 
 The GIF is Retake editing a recording, and was itself recorded, edited and
-exported with Retake.
+exported with Retake, then compressed for this page.
 
 Claude wrote most of the code. The design decisions, the rejections and the
 taste are mine — that was the experiment.
