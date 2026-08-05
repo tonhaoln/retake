@@ -244,6 +244,19 @@ label.row .val{
   display:flex; align-items:center; gap:8px;
 }
 #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+/* Tooltip. Replaces native title everywhere: that was ~1s and OS-drawn, so it
+   could never match this system. Same opacity/pointer-events shape as #toast
+   (rule 5 — never display:none). z-index 70 clears the export popover at 50
+   and stays under the shortcuts sheet at 80. */
+#tip{
+  position:fixed; z-index:70; top:0; left:0;
+  background:var(--s3); border:1px solid var(--line2); color:var(--text);
+  padding:6px 10px; border-radius:8px; font-size:12px; line-height:1.35;
+  max-width:260px; opacity:0; pointer-events:none;
+  transition:opacity .12s var(--ease);
+}
+#tip.show{opacity:1}
 #toast::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--aur2); flex:0 0 auto}
 #toast.ok::before{background:var(--ok)}
 #toast.warn::before{background:var(--warn)}
@@ -289,7 +302,7 @@ label.row .val{
     <div class="bar"><i id="exportBar"></i></div>
     <button id="cancelExport" style="padding:3px 10px">Cancel</button>
   </div>
-  <button id="exportChip" title="Export settings" aria-label="Export settings" aria-haspopup="true" aria-expanded="false">
+  <button id="exportChip" data-tip="Export settings" aria-label="Export settings" aria-haspopup="true" aria-expanded="false">
     <span id="sizeEst"></span>
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
   </button>
@@ -339,14 +352,14 @@ label.row .val{
       </div>
       <div class="hint" id="cropCustomHint" style="display:none">Width : height — decimals are fine (2.35 : 1).</div>
       <div class="seg-btns" id="cropAlignH">
-        <button data-a="l" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16"><path d="M2.5 2v12"/><rect x="5" y="5.5" width="8" height="5" rx="1"/></svg></button>
-        <button data-a="ch" title="Centre horizontally" aria-label="Centre horizontally"><svg viewBox="0 0 16 16"><path d="M8 2v12"/><rect x="4.5" y="5.5" width="7" height="5" rx="1"/></svg></button>
-        <button data-a="r" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16"><path d="M13.5 2v12"/><rect x="3" y="5.5" width="8" height="5" rx="1"/></svg></button>
+        <button data-a="l" data-tip="Align left" aria-label="Align left"><svg viewBox="0 0 16 16"><path d="M2.5 2v12"/><rect x="5" y="5.5" width="8" height="5" rx="1"/></svg></button>
+        <button data-a="ch" data-tip="Centre horizontally" aria-label="Centre horizontally"><svg viewBox="0 0 16 16"><path d="M8 2v12"/><rect x="4.5" y="5.5" width="7" height="5" rx="1"/></svg></button>
+        <button data-a="r" data-tip="Align right" aria-label="Align right"><svg viewBox="0 0 16 16"><path d="M13.5 2v12"/><rect x="3" y="5.5" width="8" height="5" rx="1"/></svg></button>
       </div>
       <div class="seg-btns" id="cropAlignV">
-        <button data-a="t" title="Align top" aria-label="Align top"><svg viewBox="0 0 16 16"><path d="M2 2.5h12"/><rect x="5.5" y="5" width="5" height="8" rx="1"/></svg></button>
-        <button data-a="cv" title="Centre vertically" aria-label="Centre vertically"><svg viewBox="0 0 16 16"><path d="M2 8h12"/><rect x="4.5" y="4.5" width="7" height="7" rx="1"/></svg></button>
-        <button data-a="b" title="Align bottom" aria-label="Align bottom"><svg viewBox="0 0 16 16"><path d="M2 13.5h12"/><rect x="5.5" y="3" width="5" height="8" rx="1"/></svg></button>
+        <button data-a="t" data-tip="Align top" aria-label="Align top"><svg viewBox="0 0 16 16"><path d="M2 2.5h12"/><rect x="5.5" y="5" width="5" height="8" rx="1"/></svg></button>
+        <button data-a="cv" data-tip="Centre vertically" aria-label="Centre vertically"><svg viewBox="0 0 16 16"><path d="M2 8h12"/><rect x="4.5" y="4.5" width="7" height="7" rx="1"/></svg></button>
+        <button data-a="b" data-tip="Align bottom" aria-label="Align bottom"><svg viewBox="0 0 16 16"><path d="M2 13.5h12"/><rect x="5.5" y="3" width="5" height="8" rx="1"/></svg></button>
       </div>
       <div class="seg-btns">
         <button id="cropApply" class="primary">Apply</button>
@@ -383,10 +396,10 @@ label.row .val{
       <button id="delZoom" style="width:100%; color:var(--danger)">Delete zoom</button>
     </div>
     <div class="hint" id="zoomCount"></div>
-    <label class="row" title="How long before each click the zoom starts"><span class="lab">Lead-in</span><input id="zLead" type="range" min="0" max="1.5" step="0.05" value="0.35"><span class="val" id="zLeadV"></span></label>
-    <label class="row" title="How long the zoom stays after the click"><span class="lab">Hold</span><input id="zHold" type="range" min="0.5" max="4" step="0.1" value="1.9"><span class="val" id="zHoldV"></span></label>
-    <label class="row" title="How fast the camera moves in and out"><span class="lab">Speed</span><input id="zTrans" type="range" min="0.3" max="1.5" step="0.05" value="0.75"><span class="val" id="zTransV"></span></label>
-    <label class="row" title="Cinematic blur while the camera is moving fast"><span class="lab">Motion blur</span><input type="checkbox" id="mblur" checked></label>
+    <label class="row" data-tip="How long before each click the zoom starts"><span class="lab">Lead-in</span><input id="zLead" type="range" min="0" max="1.5" step="0.05" value="0.35"><span class="val" id="zLeadV"></span></label>
+    <label class="row" data-tip="How long the zoom stays after the click"><span class="lab">Hold</span><input id="zHold" type="range" min="0.5" max="4" step="0.1" value="1.9"><span class="val" id="zHoldV"></span></label>
+    <label class="row" data-tip="How fast the camera moves in and out"><span class="lab">Speed</span><input id="zTrans" type="range" min="0.3" max="1.5" step="0.05" value="0.75"><span class="val" id="zTransV"></span></label>
+    <label class="row" data-tip="Cinematic blur while the camera is moving fast"><span class="lab">Motion blur</span><input type="checkbox" id="mblur" checked></label>
     </section>
 
     <section id="secCursor">
@@ -396,16 +409,16 @@ label.row .val{
     </div>
     <div id="spotUI" style="display:none">
       <div class="seg-btns" id="spotColors">
-        <button data-v="#ffffff" class="sel" title="White" aria-label="White halo" style="background:#fff"> </button><button data-v="#ffe150" title="Sun" aria-label="Sun halo" style="background:#ffe150"> </button><button data-v="#7c8cff" title="Indigo" aria-label="Indigo halo" style="background:#7c8cff"> </button><button data-v="#ff6c7c" title="Coral" aria-label="Coral halo" style="background:#ff6c7c"> </button>
+        <button data-v="#ffffff" class="sel" data-tip="White" aria-label="White halo" style="background:#fff"> </button><button data-v="#ffe150" data-tip="Sun" aria-label="Sun halo" style="background:#ffe150"> </button><button data-v="#7c8cff" data-tip="Indigo" aria-label="Indigo halo" style="background:#7c8cff"> </button><button data-v="#ff6c7c" data-tip="Coral" aria-label="Coral halo" style="background:#ff6c7c"> </button>
       </div>
       <label class="row"><span class="lab">Glow</span><input id="spotOp" type="range" min="10" max="80" step="5" value="35"><span class="val" id="spotOpV"></span></label>
     </div>
     <label class="row"><span class="lab">Size</span><input id="curSize" type="range" min="0.6" max="3" step="0.1" value="1.4"><span class="val" id="curSizeV"></span></label>
     <label class="row"><span class="lab">Smoothing</span><input id="curSmooth" type="range" min="0" max="100" step="1" value="60"><span class="val" id="curSmoothV"></span></label>
-    <label class="row" title="Fade the cursor out when it hasn't moved for a while"><span class="lab">Hide when idle</span><input type="checkbox" id="hideIdle" checked></label>
+    <label class="row" data-tip="Fade the cursor out when it hasn't moved for a while"><span class="lab">Hide when idle</span><input type="checkbox" id="hideIdle" checked></label>
     <label class="row" id="idleRow"><span class="lab">After</span><input id="idleAfter" type="range" min="0.5" max="5" step="0.25" value="2"><span class="val" id="idleAfterV"></span></label>
     <label class="row"><span class="lab">Click ripples</span><input type="checkbox" id="ripples" checked></label>
-    <label class="row" id="keysRow" title="Recorded with --keys"><span class="lab">Keystrokes</span><input type="checkbox" id="keysOn" checked></label>
+    <label class="row" id="keysRow" data-tip="Recorded with --keys"><span class="lab">Keystrokes</span><input type="checkbox" id="keysOn" checked></label>
     <div class="hint" id="keysHint" style="display:none">Recorded without --keys.</div>
     </section>
 
@@ -413,7 +426,7 @@ label.row .val{
     <h3>Webcam</h3>
     <label class="row"><span class="lab">Show webcam</span><input type="checkbox" id="camShow" checked></label>
     <div class="seg-btns" id="camPos">
-      <button data-v="bl" title="Bottom left" aria-label="Bottom left">◣</button><button data-v="br" title="Bottom right" aria-label="Bottom right" class="sel">◢</button><button data-v="tl" title="Top left" aria-label="Top left">◤</button><button data-v="tr" title="Top right" aria-label="Top right">◥</button>
+      <button data-v="bl" data-tip="Bottom left" aria-label="Bottom left">◣</button><button data-v="br" data-tip="Bottom right" aria-label="Bottom right" class="sel">◢</button><button data-v="tl" data-tip="Top left" aria-label="Top left">◤</button><button data-v="tr" data-tip="Top right" aria-label="Top right">◥</button>
     </div>
     <div class="seg-btns" id="camShape">
       <button data-v="circle" class="sel">Circle</button><button data-v="round">Rounded</button>
@@ -432,7 +445,7 @@ label.row .val{
       <label class="row"><span class="lab">System audio</span><input type="checkbox" id="sysOn" checked></label>
       <label class="row"><span class="lab">System volume</span><input id="sysVol" type="range" min="0" max="150" step="5" value="100"><span class="val" id="sysVolV"></span></label>
     </div>
-    <label class="row" title="A soft tick at every click, mixed into the export"><span class="lab">Click sounds</span><input type="checkbox" id="clickSnd"></label>
+    <label class="row" data-tip="A soft tick at every click, mixed into the export"><span class="lab">Click sounds</span><input type="checkbox" id="clickSnd"></label>
     <div class="hint" id="audioHint">No audio track found.</div>
     </section>
 
@@ -447,27 +460,28 @@ label.row .val{
 
 <div id="bottom">
   <div id="transport">
-    <button id="startBtn" title="Jump to the start of your trim (Home)" aria-label="Jump to the start of your trim">
+    <button id="startBtn" data-tip="Jump to the start of your trim (Home)" aria-label="Jump to the start of your trim">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M4 3.5v9" stroke-width="2.2"/>
         <path d="M12.6 3.6v8.8L6.3 8z" fill="currentColor" stroke="none"/>
       </svg>
     </button>
-    <button id="playBtn" title="Play / pause (space)" aria-label="Play" aria-pressed="false">
+    <button id="playBtn" data-tip="Play / pause (space)" aria-label="Play" aria-pressed="false">
       <svg class="ic-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8v10.4L13 8z" fill="currentColor" stroke="none"/></svg>
       <svg class="ic-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3v10M11.5 3v10" stroke-width="2.6"/></svg>
     </button>
-    <button id="splitBtn" title="Split the video track at the playhead (S)">
+    <button id="splitBtn" data-tip="Split the video track at the playhead (S)">
       <svg viewBox="0 0 16 16"><circle cx="4" cy="4.5" r="2"/><circle cx="4" cy="11.5" r="2"/><path d="M5.7 5.6L14 13M5.7 10.4L14 3"/></svg>Split
     </button>
     <span id="time">0:00.0 / 0:00.0</span>
     <span class="tl-help" id="tlHelp">✂ <kbd>S</kbd> split</span>
-    <button id="helpBtn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+    <button id="helpBtn" data-tip="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
   </div>
   <canvas id="timeline" height="84"></canvas>
 </div>
 
 <div id="toast" role="status" aria-live="polite"><span id="toastMsg"></span></div>
+<div id="tip" role="tooltip"></div>
 
 <div id="shortcuts">
   <div class="sheet">

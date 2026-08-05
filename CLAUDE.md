@@ -20,7 +20,7 @@ loader keys off bundle contents, never the extension — do not add one).
   ⚠️ ALWAYS run build.js before testing — tests load the dist file.
   Never hand-edit the root file or the dist; edit the sources.
 - `test/` — Playwright suite. `*.test.mjs` files are gates (`npm test` runs
-  all eighteen); `shot-*.mjs` are screenshot helpers, not gates. The runner is
+  all nineteen); `shot-*.mjs` are screenshot helpers, not gates. The runner is
   a hardcoded list in `test/package.json` — a new `.test.mjs` file does NOT
   run until it is added there, so add it in the same commit or it is inert. Paths resolve
   through `test/paths.mjs`, so the suite runs on any checkout. Setup once:

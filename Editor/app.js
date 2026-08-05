@@ -64,6 +64,43 @@ function toast(msg, ms = 3200, kind = '') {
   el.classList.add('show');
   clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), ms);
 }
+// ---------------------------------------------------------------- tooltips
+// One element, delegated hover, controls opt in with data-tip. Native title
+// was ~1s and OS-drawn; 350ms is under the threshold where a hover feels
+// ignored. Grouping matters as much as the delay: once a tip has been up
+// recently, the next shows instantly, so scanning six crop-align icons in a
+// row doesn't stutter through six separate waits.
+const TIP_DELAY = 350, TIP_GRACE = 2000;
+let tipTimer = null, tipLastHidden = -Infinity, tipEl = null;
+function showTip(el) {
+  const txt = el.dataset.tip;
+  if (!txt) return;
+  tipEl = tipEl || $('tip');
+  tipEl.textContent = txt;
+  tipEl.classList.add('show');
+  // measure only after the text is in, or the width is last tip's
+  const r = el.getBoundingClientRect(), t = tipEl.getBoundingClientRect();
+  tipEl.style.left = clamp(r.left + r.width / 2 - t.width / 2, 8, innerWidth - t.width - 8) + 'px';
+  tipEl.style.top  = Math.max(8, r.top - t.height - 8) + 'px';
+}
+function hideTip() {
+  clearTimeout(tipTimer);
+  tipEl = tipEl || $('tip');
+  if (tipEl.classList.contains('show')) tipLastHidden = performance.now();
+  tipEl.classList.remove('show');
+}
+document.addEventListener('pointerover', e => {
+  const el = e.target.closest?.('[data-tip]');
+  if (!el) return;
+  clearTimeout(tipTimer);
+  const warm = performance.now() - tipLastHidden < TIP_GRACE;
+  tipTimer = setTimeout(() => showTip(el), warm ? 0 : TIP_DELAY);
+});
+document.addEventListener('pointerout', e => { if (e.target.closest?.('[data-tip]')) hideTip(); });
+// A tip left hanging over a control you just clicked reads as a stuck overlay.
+document.addEventListener('pointerdown', hideTip);
+window.addEventListener('scroll', hideTip, true);
+
 // aurora fill for range inputs — called on every value change
 function setFill(el) {
   const min = parseFloat(el.min || 0), max = parseFloat(el.max || 100);
@@ -1923,7 +1960,7 @@ function renderLookHistory() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'look-row';
-    if (cur && lookEq(look, cur)) { b.classList.add('current'); b.title = 'Your current default'; }
+    if (cur && lookEq(look, cur)) { b.classList.add('current'); b.dataset.tip = 'Your current default'; }
     const chip = document.createElement('span');
     chip.className = 'look-chip';
     chip.style.background = `linear-gradient(135deg, ${(BGS[look.bg] || BGS[0]).s.join(',')})`;
@@ -1942,7 +1979,7 @@ $('saveLook').onclick = saveDefaultLook;
     const d = document.createElement('button');
     d.type = 'button';
     d.className = 'swatch' + (i === S.set.bg ? ' sel' : '');
-    d.title = bg.n;
+    d.dataset.tip = bg.n;
     d.setAttribute('aria-label', bg.n + ' background');
     d.style.background = `linear-gradient(135deg, ${bg.s.join(',')})`;
     d.onclick = () => {
