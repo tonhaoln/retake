@@ -1,5 +1,5 @@
 // Gate: trim brackets snap to splits and the playhead within 8 screen px,
-// snap-then-clamp, Alt bypasses (Friction 002, item 10). Driven through real
+// snap-then-clamp, Alt bypasses. Driven through real
 // pointer events on the timeline canvas — the same path a user's drag takes.
 import { chromium } from 'playwright';
 import { EDITOR_URL, FIX } from './paths.mjs';

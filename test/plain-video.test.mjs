@@ -24,7 +24,7 @@ console.log('MANUAL SEG:', JSON.stringify(seg));
 check('manual zoom exists around 2.5', !!seg && seg.t0 < 2.5 && seg.t1 > 2.5 && seg.z === 2);
 await page.screenshot({ path: OUT + '/07-plain-video-manual-zoom.png' });
 
-// ---- absent capabilities fade + disable, never hide (Friction 002 item 7)
+// ---- absent capabilities fade + disable, never hide
 const side = await page.evaluate(() => ({
   camAbsent: document.getElementById('secWebcam').classList.contains('absent'),
   camInert: document.getElementById('secWebcam').inert,

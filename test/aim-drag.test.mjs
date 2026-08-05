@@ -1,4 +1,4 @@
-// Gate: aim on the map, not through the telescope (Friction 002, item 6).
+// Gate: aim on the map, not through the telescope.
 // The press must not teleport the aim, the drag must map pointer deltas to
 // source units under a constant mapping (the old zoomed-in drag was a
 // feedback loop with gain over 1), and the camera override must exist only

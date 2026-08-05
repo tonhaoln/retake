@@ -274,7 +274,7 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
             // way. The pixels themselves are never converted (see the capture
             // config note); this block only stops players guessing. Guessing
             // renders wide-gamut takes visibly desaturated, which shipped as
-            // Friction 002 item 11. sRGB transfer, NOT bt709: Apple's recorder
+            // sRGB transfer, NOT bt709: Apple's recorder
             // converts content to bt709 and tags what it made; we keep raw
             // pixels and tag what they are (decided by measurement, 2026-08-02
             // A/B). The CoreVideo string is used for the transfer because its

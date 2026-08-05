@@ -1,4 +1,4 @@
-// Gate: crop keyboard nudge + align six-pack (Friction 002, items 1+2).
+// Gate: crop keyboard nudge + the align six-pack.
 // Arrows move the box in source px (Shift ×10), Alt+arrow resizes anchored
 // top-left, a locked ratio survives edge clamps via back-derivation, arrows
 // typed into the ratio fields never nudge, and the six align buttons land the

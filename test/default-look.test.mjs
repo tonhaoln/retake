@@ -1,5 +1,5 @@
 // Gate: the default look, and the autosave-semantics change underneath it
-// (Friction 002, item 9 + the review's landmine). The invariant: every
+// The invariant: every
 // recording that opens without existing edits gets the latest look applied
 // on arrival — which only holds if "has an autosave" means "has edits", so
 // merely opening a recording must write nothing.

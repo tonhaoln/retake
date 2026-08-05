@@ -24,8 +24,9 @@ const check = (n, ok, extra = '') => { console.log((ok ? 'ok   ' : 'FAIL ') + n 
 
 // Colour metadata: the recorder pins capture to Display P3 and must declare
 // it, or every player guesses bt709 and renders the take desaturated. An
-// untagged bundle here is a real defect (legacy pre-2026-08-02 bundles fail
-// honestly; retro-tag them, the command is in the vault's Friction 002 note).
+// untagged bundle here is a real defect. Bundles recorded before 2026-08-02
+// predate the fix and fail honestly; they can be retagged losslessly with
+// ffmpeg -c copy and the Display P3 colour flags, no re-encode.
 const screenFile = ['screen.mov', 'screen.mp4'].map(f => path.join(BUNDLE, f)).find(f => fs.existsSync(f));
 try {
   const probe = JSON.parse(execFileSync('ffprobe', [
