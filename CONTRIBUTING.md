@@ -55,3 +55,7 @@ file fails the build. That is what keeps "audit it yourself" a real offer.
    behind the explicit `--keys` flag.
 
 Anything that breaks either one won't be merged, however good it is.
+
+These two are the headline. The full set of load-bearing rules — thirteen,
+with their reasoning — lives in [CLAUDE.md](CLAUDE.md); read it before a
+non-trivial change.

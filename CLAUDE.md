@@ -34,8 +34,7 @@ loader keys off bundle contents, never the extension — do not add one).
 
 **No state files, no session notes, no roadmap, no private observations, and no
 absolute paths into the author's home directory.** This repo is public and
-permanent; project thinking lives in the private notes store named in the
-machine-level instructions, not here. This file (the contract) and `README.md`
+permanent; project thinking lives outside this repo. This file (the contract) and `README.md`
 (the shipped artifact, rule 12) are the only prose that belongs in it.
 
 That applies to **commit messages and code comments too**, which are just as
@@ -44,7 +43,7 @@ internal role words, no references to documents that only exist outside this
 repo. A comment pointing at a note the reader cannot open is worse than no
 comment.
 
-Before writing any note-shaped file here, stop. It belongs in the notes store.
+Before writing any note-shaped file here, stop. It belongs outside the repo.
 
 **Before publishing anything, enumerate — do not search.** Grep only finds
 words you already suspect, and the working tree looking clean says nothing

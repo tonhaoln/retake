@@ -1,5 +1,6 @@
 node_modules/
 .build/
 .DS_Store
+.claude/
 test/out/
 Editor/dist-retake-editor.html

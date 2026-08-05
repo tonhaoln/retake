@@ -8,6 +8,9 @@
 The GIF is Retake editing a recording, and was itself recorded, edited and
 exported with Retake.
 
+Claude wrote most of the code. The design decisions, the rejections and the
+taste are mine — that was the experiment.
+
 A free, two-part replacement for Screen Studio:
 
 1. **Recorder** (`retake`) — a tiny native macOS tool that records your screen
@@ -228,6 +231,9 @@ passwords. A default recording *cannot* contain your keystrokes.
 If you would rather the recorder never watched the keyboard at all, say so in
 an issue and a `--no-input` flag is a short patch away.
 
+Found a security problem? Report it privately through the repo's Security
+tab rather than a public issue.
+
 ## Troubleshooting
 
 - **"Could not listen for clicks"** → grant Accessibility to your terminal, rerun.
@@ -249,5 +255,8 @@ stays a single HTML document:
 [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (c) Vanilagy, and
 [gifenc](https://github.com/mattdesl/gifenc) (c) Matt DesLauriers.
 Full notices in [NOTICE](NOTICE).
+
+Retake is a personal tool, shared as-is: bug reports are welcome, and
+response times aren't promised.
 
 Everything here is yours — MIT ([LICENSE](LICENSE)). Enjoy not paying a subscription.
