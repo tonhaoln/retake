@@ -470,15 +470,26 @@ function updateZoomPanel() {
 // never be the silent one. Prebuilt variants — the kbd chips are children,
 // so textContent would flatten them. The ? overlay stays the full reference.
 const HELP_HTML = {
-  none:  '✂ <kbd>S</kbd> split',
-  seg:   '<kbd>⌫</kbd> delete · drag the ring to aim',
+  none:  '',
+  seg:   '<kbd>⌫</kbd> delete this zoom · drag the ring to aim',
   piece: '<kbd>⌫</kbd> cut this section',
   cut:   '<kbd>⌫</kbd> restore',
 };
+// Only one of these removes footage. Deleting a zoom or restoring a cut are
+// both cheap; cutting a piece is the one worth marking. The tint goes on the
+// ⌫ chip, not the sentence, following #toast's coloured dot — and because
+// everything here is undoable, a red sentence would overstate it.
+const HELP_DANGER = { piece: true };
 function updateHelpStrip() {
   const k = S.selSeg >= 0 ? 'seg' : S.selCut >= 0 ? 'cut' : S.selPiece >= 0 ? 'piece' : 'none';
   const el = $('tlHelp');
-  if (el.dataset.state !== k) { el.dataset.state = k; el.innerHTML = HELP_HTML[k]; }
+  if (el.dataset.state === k) return;
+  el.dataset.state = k;
+  el.innerHTML = HELP_HTML[k];
+  // Silent when nothing is selected. A line that always says something gets
+  // filed by the eye as furniture, and furniture is invisible at any size.
+  el.classList.toggle('speaking', k !== 'none');
+  el.classList.toggle('danger', !!HELP_DANGER[k]);
 }
 
 // ------------------------------------------------------------------ undo / redo (timeline + crop edits only)
@@ -1431,7 +1442,9 @@ tl.addEventListener('pointerdown', e => {
     if (ci >= 0) {
       S.selCut = ci; S.selPiece = -1; S.selSeg = -1;
       updateZoomPanel(); drawTimeline();
-      toast('Cut section selected — ⌫ restores it.', 1800);
+      // No toast here: the hint strip says "⌫ restore" at this exact moment
+      // and keeps saying it for as long as the cut stays selected, where the
+      // toast expired after 1.8s. One surface owns this.
       return;
     }
     const pi = pieces().findIndex(p => t >= p.t0 && t <= p.t1);

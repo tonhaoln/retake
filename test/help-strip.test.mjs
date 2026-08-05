@@ -15,25 +15,32 @@ await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 
-const strip = () => page.evaluate(() => ({
-  state: document.getElementById('tlHelp').dataset.state || 'none',
-  text: document.getElementById('tlHelp').textContent,
-  kbds: document.querySelectorAll('#tlHelp kbd').length,
-}));
+const strip = () => page.evaluate(() => {
+  const el = document.getElementById('tlHelp');
+  return {
+    state: el.dataset.state || 'none',
+    text: el.textContent,
+    kbds: el.querySelectorAll('kbd').length,
+    speaking: el.classList.contains('speaking'),
+    danger: el.classList.contains('danger'),
+  };
+});
 
+// The strip is silent at rest as of 5 Aug. A line that always says something
+// gets filed by the eye as furniture and stops being read at any size — which
+// is exactly what happened to the old "✂ S split" resting text.
 let s = await strip();
-check('boots in the none state', s.text.includes('split'));
-// One chip is enough to prove the point this assertion exists for: innerHTML
-// was used, not textContent, which would have flattened the <kbd> children.
-// The strip dropped to a single chip on 5 Aug when the "?" cap left — it was
-// teaching a Shift+/ chord it didn't name, and looked clickable without being
-// clickable. The #helpBtn button carries that job now.
-check('kbd chips survive as children', s.kbds >= 1);
+check('says nothing when nothing is selected', s.text.trim() === '' && !s.speaking);
 
 // zoom selected → aim guidance
 await page.evaluate(() => addZoomAt(2));
 s = await strip();
 check('zoom selected reads delete + aim', s.state === 'seg' && s.text.includes('aim'));
+check('and it is now visible', s.speaking);
+// Proves innerHTML was used rather than textContent, which would flatten the
+// <kbd> children. Asserted on a speaking state because the resting one is empty.
+check('kbd chips survive as children', s.kbds >= 1);
+check('deleting a zoom is not marked destructive', !s.danger);
 
 // deselect → back to none
 await page.evaluate(() => { S.selSeg = -1; updateZoomPanel(); });
@@ -46,6 +53,10 @@ await page.waitForTimeout(200);
 await page.evaluate(() => { splitAtPlayhead(); S.selPiece = 0; S.selSeg = -1; S.selCut = -1; updateZoomPanel(); });
 s = await strip();
 check('piece selected reads cut this section', s.state === 'piece' && s.text.includes('cut this section'));
+// The one state that removes footage, and the only one that gets the tint.
+// Same key, three consequences: if this doesn't look different from "restore",
+// the strip isn't doing the job it exists for.
+check('cutting a piece IS marked destructive', s.danger);
 
 // deleting the piece goes through the branch that skips updateZoomPanel —
 // the strip must still reset
@@ -57,6 +68,7 @@ check('strip resets after cutting a piece', s.state === 'none');
 await page.evaluate(() => { S.selCut = 0; S.selSeg = -1; S.selPiece = -1; updateZoomPanel(); });
 s = await strip();
 check('cut selected reads restore', s.state === 'cut' && s.text.includes('restore'));
+check('restoring a cut is not marked destructive', !s.danger);
 
 // restoring the cut exercises the other skipped branch
 await page.evaluate(() => deleteSelection());

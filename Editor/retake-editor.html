@@ -225,7 +225,9 @@ label.row .val{
 #bottom{flex:0 0 auto; background:var(--s1); border-top:1px solid var(--line); padding:8px 16px 12px}
 #transport{display:flex; align-items:center; gap:10px; margin-bottom:8px}
 #startBtn{width:34px; padding:6px 0}
-#helpBtn{width:26px; height:26px; padding:0; border-radius:50%; font-size:12px; color:var(--dim); flex:0 0 auto}
+/* margin-left:auto moved here off .tl-help: it right-anchors the help button
+   and leaves the message sitting next to the time, with the gap between. */
+#helpBtn{margin-left:auto; font-size:12px; color:var(--dim); flex:0 0 auto}
 #helpBtn:hover{color:var(--text)}
 #playBtn{width:42px; padding:6px 0}
 #playBtn .ic-pause{display:none}
@@ -233,8 +235,19 @@ label.row .val{
 #playBtn.playing .ic-pause{display:inline}
 #time{font-variant-numeric:tabular-nums; color:var(--dim); min-width:130px; font-size:12px}
 #timeline{width:100%; height:84px; display:block; border-radius:10px; background:var(--s2)}
-.tl-help{color:var(--dim); font-size:12px; margin-left:auto}
+/* The selection message. Sits straight after the time readout, because that is
+   where the eye already is after clicking the timeline — the far right of this
+   row is the furthest point from it. It lives in the flex gap, so appearing and
+   vanishing shifts no control. Invisible and padding-free until it has
+   something to say. */
+.tl-help{
+  font-size:12px; color:var(--text);
+  background:none; border:1px solid transparent; padding:5px 0; border-radius:8px;
+  opacity:0; transition:opacity .15s var(--ease);
+}
+.tl-help.speaking{opacity:1; background:var(--s2); border-color:var(--line); padding:5px 10px}
 .tl-help kbd{background:var(--s3); border-radius:4px; padding:2px 6px; font:11px inherit}
+.tl-help.danger kbd{background:rgba(255,108,124,.18); color:var(--danger)}
 
 #toast{
   position:fixed; left:50%; bottom:120px; transform:translateX(-50%) translateY(8px);
@@ -474,8 +487,13 @@ label.row .val{
       <svg viewBox="0 0 16 16"><circle cx="4" cy="4.5" r="2"/><circle cx="4" cy="11.5" r="2"/><path d="M5.7 5.6L14 13M5.7 10.4L14 3"/></svg>Split
     </button>
     <span id="time">0:00.0 / 0:00.0</span>
-    <span class="tl-help" id="tlHelp">✂ <kbd>S</kbd> split</span>
-    <button id="helpBtn" data-tip="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+    <span class="tl-help" id="tlHelp"></span>
+    <button id="helpBtn" data-tip="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <rect x="1.2" y="3.8" width="13.6" height="8.4" rx="1.6"/>
+        <path d="M4 6.4h.01M6.5 6.4h.01M9 6.4h.01M11.5 6.4h.01M4 9.6h8"/>
+      </svg>Shortcuts
+    </button>
   </div>
   <canvas id="timeline" height="84"></canvas>
 </div>
