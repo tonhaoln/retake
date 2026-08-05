@@ -103,7 +103,7 @@ and, in Australia, by state.
 
 ## Editing
 
-![The Retake editor: a recording loaded on a painterly background image, framing and zoom controls in the sidebar, two zooms and the click markers visible on the timeline.](assets/hero.png)
+![The Retake editor: a recording loaded on a painterly background image, framing and zoom controls in the sidebar, three zooms and the click markers visible on the timeline.](assets/hero.png)
 
 1. Open `retake-editor.html` in **Chrome** (or Edge/Arc — anything Chromium).
    Tip: keep it in your Dock — it's just a file.
