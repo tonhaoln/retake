@@ -3,11 +3,6 @@
 [![tests](https://github.com/tonhaoln/retake/actions/workflows/test.yml/badge.svg)](https://github.com/tonhaoln/retake/actions/workflows/test.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![The Retake editor at work, itself recorded and polished with Retake: framing sliders reshape the padding and shadow around a recorded app, a zoom is added at the playhead, and the preview dives into the spot it was aimed at.](assets/demo.gif)
-
-The GIF is Retake editing a recording, and was itself recorded, edited and
-exported with Retake, then compressed for this page.
-
 Claude wrote most of the code. The design decisions, the rejections and the
 taste are mine — that was the experiment.
 
