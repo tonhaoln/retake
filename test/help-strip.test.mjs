@@ -1,4 +1,4 @@
-// Gate: the timeline hint strip reads the current selection (Friction 002,
+// Gate: the timeline hint strip reads the current selection
 // item 4b). Four states — none, zoom, piece, cut — and it must reset through
 // the two deleteSelection branches that skip updateZoomPanel, because a
 // status line that lies is worse than a faint one.
@@ -10,7 +10,7 @@ const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) f
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
-page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
+page.on('pageerror', e => { console.log('PAGE EXCEPTION:', e.message); fails.push('page exception: ' + e.message); });
 await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
@@ -71,6 +71,7 @@ await page.evaluate(() => { S.selCut = 0; S.selSeg = -1; S.selPiece = -1; update
 s = await strip();
 check('cut selected reads restore', s.state === 'cut' && s.text.includes('restore'));
 check('restoring a cut is not marked destructive', !s.danger);
+check('and it speaks with an icon too', s.speaking && s.icons === 1);
 
 // restoring the cut exercises the other skipped branch
 await page.evaluate(() => deleteSelection());

@@ -1,7 +1,7 @@
 // Gate: the styled tooltip replaces native `title` everywhere.
 //
-// Native title is ~1s and OS-drawn, which is the sluggishness the operator hit
-// on 5 Aug. The realistic failure mode here is not the component, it is a
+// Native title is ~1s and OS-drawn, which is the sluggishness this replaces.
+// The realistic failure mode here is not the component, it is a
 // half-finished migration: one surviving `title` means that control shows the
 // slow OS tooltip AND the styled one, in the same window, at different speeds.
 // Assertion 2 is the one that catches that, and it is why this file exists.
@@ -13,7 +13,10 @@ const check = (n, ok) => { console.log((ok ? 'ok   ' : 'FAIL ') + n); if (!ok) f
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
-page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
+// Pushes, not just prints: a handler that only logs lets an uncaught exception
+// exit 0, which is how a null-deref on #startBtn walked past the whole suite.
+// Idiom copied from load-guards.test.mjs, the one gate that had it right.
+page.on('pageerror', e => { console.log('PAGE EXCEPTION:', e.message); fails.push('page exception: ' + e.message); });
 await page.goto(EDITOR_URL);
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
@@ -54,11 +57,17 @@ check(`no native title attributes survive (found ${titles.length}${titles.length
 const tipCount = await page.evaluate(() => document.querySelectorAll('[data-tip]').length);
 check(`controls carry data-tip instead (${tipCount} found, floor 38)`, tipCount >= 38);
 
-// ------------------------------------------- 3. the tip sits above its control
+// --------------------------------------- 3. the tip is ANCHORED to its control
+// Not "sits above": a tip with every positioning line deleted parks at the CSS
+// default of 0,0 and satisfies "not below the button" perfectly well. Assert
+// attachment instead — a small gap AND horizontal centring — so the assertion
+// fails when the positioning does.
 const btn = await page.locator('#splitBtn').boundingBox();
 t = await tipState();
-check(`tip sits above the control (tip bottom ${t.exists ? t.rect.bottom.toFixed(0) : '?'} <= button top ${btn.y.toFixed(0)})`,
-  t.exists && t.rect.bottom <= btn.y + 1);
+const gap = t.exists ? btn.y - t.rect.bottom : NaN;
+const dx  = t.exists ? Math.abs((t.rect.left + t.rect.width / 2) - (btn.x + btn.width / 2)) : NaN;
+check(`tip is anchored above the control (gap ${gap.toFixed(0)}px, centres ${dx.toFixed(0)}px apart)`,
+  t.exists && t.shown && gap >= 0 && gap < 24 && dx < 2);
 
 // ----------------------------------------------- 4. it hides when you leave
 await page.mouse.move(750, 400);

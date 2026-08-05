@@ -20,7 +20,7 @@ loader keys off bundle contents, never the extension — do not add one).
   ⚠️ ALWAYS run build.js before testing — tests load the dist file.
   Never hand-edit the root file or the dist; edit the sources.
 - `test/` — Playwright suite. `*.test.mjs` files are gates (`npm test` runs
-  all nineteen); `shot-*.mjs` are screenshot helpers, not gates. The runner is
+  all twenty); `shot-*.mjs` are screenshot helpers, not gates. The runner is
   a hardcoded list in `test/package.json` — a new `.test.mjs` file does NOT
   run until it is added there, so add it in the same commit or it is inert. Paths resolve
   through `test/paths.mjs`, so the suite runs on any checkout. Setup once:
@@ -29,6 +29,30 @@ loader keys off bundle contents, never the extension — do not add one).
   Chromium lacks H.264/AAC — real Chrome uses H.264/AAC; the editor has
   fallbacks). Regenerate with `./make-fixture.sh`. Run ALL gates after any
   editor change.
+
+## This repo holds CODE. Nothing else.
+
+**No state files, no session notes, no roadmap, no private observations, and no
+absolute paths into the author's home directory.** This repo is public and
+permanent; project thinking lives in the private notes store named in the
+machine-level instructions, not here. This file (the contract) and `README.md`
+(the shipped artifact, rule 12) are the only prose that belongs in it.
+
+That applies to **commit messages and code comments too**, which are just as
+public as the files. Write them for a stranger reading the repo cold: no
+internal role words, no references to documents that only exist outside this
+repo. A comment pointing at a note the reader cannot open is worse than no
+comment.
+
+Before writing any note-shaped file here, stop. It belongs in the notes store.
+
+**Before publishing anything, enumerate — do not search.** Grep only finds
+words you already suspect, and the working tree looking clean says nothing
+about history. List every path in `git rev-list --all --objects`, read every
+commit message body in full, open every binary and look at it. And never
+report something as removed from a remote without fetching its public URL and
+seeing it fail: a fresh clone looks clean whether or not the host still serves
+the old objects, so a clone is not a test.
 
 ## Hard rules
 
@@ -40,7 +64,8 @@ loader keys off bundle contents, never the extension — do not add one).
 3. **Single-file editor**: no external deps, fonts, or CDNs. New libs must be
    inlined via build.js.
 4. **Test contract**: element ids (exportBtn, exportFmt, exportQ, exportRes,
-   exportFps, sizeEst, dirInput, timeline, splitBtn, cropW/cropH, cursorStyle data-v
+   exportFps, sizeEst, dirInput, timeline, splitBtn, startBtn, helpBtn, tip, tlZoom,
+   cropW/cropH, cursorStyle data-v
    buttons, cropAlignH/cropAlignV data-a buttons, tlHelp, saveLook, lookHistory
    (+ .look-row buttons), keysHint, the sidebar section wrappers
    secFrame…secLook…) and global functions (pause,
@@ -100,3 +125,15 @@ loader keys off bundle contents, never the extension — do not add one).
    forward: an export-speed figure nobody had measured, and a hold-the-zoom-
    while-typing feature that justified collecting key timings and does not
    exist in the code.
+13. **The timeline view window is not an edit (2026-08-05)**: `S.viewT0`/
+   `S.viewT1` live on `S` directly and must never enter `S.set`,
+   `serializeEdits()` or `LOOK_KEYS`. `serializeEdits` is what the autosave
+   interval diffs, so a view window inside it would make *zooming* write an
+   autosave — and rule 9's "has an autosave" predicate would then read looking
+   as editing and pin the take to the factory look. For the same reason no
+   view change calls `pushUndo` (rule 7). The trap is that `bindRange`, the
+   helper every other slider uses, writes straight into `S.set`: `#tlZoom` is
+   wired by hand on purpose. All clamping goes through `setView()` so no
+   caller invents its own bounds, and every entry point that can change the
+   view (`wheel`, the slider, the scroll-bar drag) carries the same
+   `!S.loaded || S.exporting` guard the rest of the transport does.

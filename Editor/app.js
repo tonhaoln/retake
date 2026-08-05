@@ -31,6 +31,11 @@ const S = {
   selPiece: -1, selCut: -1,
   cropMode: false, cropDraft: null, cropAspect: null,
   trimIn: 0, trimOut: 0,
+  // The visible slice of the timeline. Deliberately NOT in S.set: serializeEdits
+  // persists S.set, so a view window living there would make zooming look like
+  // an edit — the autosave would fire on someone merely looking, and rule 9's
+  // "has an autosave" predicate would pin the take to the factory look. Rule 13.
+  viewT0: 0, viewT1: 0,
   playing: false,
   exporting: false,
   fileKey: null,        // identifies this recording for autosave
@@ -74,14 +79,21 @@ const TIP_DELAY = 350, TIP_GRACE = 2000;
 let tipTimer = null, tipLastHidden = -Infinity, tipEl = null;
 function showTip(el) {
   const txt = el.dataset.tip;
-  if (!txt) return;
+  // The target can be gone by the time the delay fires (renderLookHistory
+  // rebuilds its rows). A detached node measures as zeros, which would park
+  // the tip in the corner with no pointerout ever coming to dismiss it.
+  if (!txt || !el.isConnected) return;
   tipEl = tipEl || $('tip');
   tipEl.textContent = txt;
   tipEl.classList.add('show');
   // measure only after the text is in, or the width is last tip's
   const r = el.getBoundingClientRect(), t = tipEl.getBoundingClientRect();
   tipEl.style.left = clamp(r.left + r.width / 2 - t.width / 2, 8, innerWidth - t.width - 8) + 'px';
-  tipEl.style.top  = Math.max(8, r.top - t.height - 8) + 'px';
+  // Above by default, but flip below when there isn't room — clamping instead
+  // would lay the tip straight over the control it is describing, which is
+  // what happens to everything in the topbar.
+  const above = r.top - t.height - 8;
+  tipEl.style.top = (above >= 8 ? above : r.bottom + 8) + 'px';
 }
 function hideTip() {
   clearTimeout(tipTimer);
@@ -96,7 +108,14 @@ document.addEventListener('pointerover', e => {
   const warm = performance.now() - tipLastHidden < TIP_GRACE;
   tipTimer = setTimeout(() => showTip(el), warm ? 0 : TIP_DELAY);
 });
-document.addEventListener('pointerout', e => { if (e.target.closest?.('[data-tip]')) hideTip(); });
+// contains(relatedTarget) or the tip flickers crossing onto a button's own
+// icon: pointerout fires on that internal boundary, and each hide/show
+// restarts the fade and extends the grace window for a pointer that never
+// actually left the control.
+document.addEventListener('pointerout', e => {
+  const el = e.target.closest?.('[data-tip]');
+  if (el && !el.contains(e.relatedTarget)) hideTip();
+});
 // A tip left hanging over a control you just clicked reads as a stuck overlay.
 document.addEventListener('pointerdown', hideTip);
 window.addEventListener('scroll', hideTip, true);
@@ -219,6 +238,7 @@ async function loadFromFiles(fileList) {
   S.meta = meta; S.cursor = cursor;
   S.duration = video.duration;
   S.trimIn = 0; S.trimOut = video.duration;
+  S.viewT0 = 0; S.viewT1 = video.duration;   // every recording opens fully zoomed out
   S.pointScale = meta && meta.pointWidth ? video.videoWidth / meta.pointWidth : 1;
   S.segs = []; S.selSeg = -1; S.loaded = true;
   S.splits = []; S.cuts = []; S.selPiece = -1; S.selCut = -1;
@@ -467,28 +487,27 @@ function updateZoomPanel() {
 
 // The hint strip reads the current selection: the same key does different
 // things by state, and the one that destroys footage (⌫ on a piece) must
-// never be the silent one. Prebuilt variants — the kbd chips are children,
-// so textContent would flatten them. The ? overlay stays the full reference.
-// 14px icons at the same stroke weight as the Split button, because an 11px ⌫
-// character was unreadable and was the whole reason this line went unseen.
-// Deliberately NOT the scissors: Split already owns that mark and means
-// something non-destructive by it.
-const ICON_CUT = '<svg viewBox="0 0 16 16" aria-hidden="true">' +
-  '<path d="M2.5 4.2h11"/><path d="M5.8 4.2V2.6h4.4v1.6"/><path d="M4.2 4.2l.7 9.2h6.2l.7-9.2"/></svg>';
-const ICON_RESTORE = '<svg viewBox="0 0 16 16" aria-hidden="true">' +
-  '<path d="M13 12a5.5 5.5 0 0 0-5.5-5.5H3"/><path d="M6 3.5L2.5 6.5 6 9.5"/></svg>';
+// never be the silent one. Prebuilt HTML variants because the icon is a
+// child element — textContent would flatten it away.
+// The delete key itself, drawn rather than typed. A "⌫" in the string is a
+// text character, so it renders at the 12px font size and is unreadable —
+// which was the actual reason this line went unseen. Sizing and stroke come
+// from `.tl-help svg`, matching the Split button's scissors.
+const ICON_DEL = '<svg viewBox="0 0 16 16" aria-hidden="true">' +
+  '<path d="M6 3.4h6.9a1.5 1.5 0 0 1 1.5 1.5v6.2a1.5 1.5 0 0 1-1.5 1.5H6L1.6 8z"/>' +
+  '<path d="M8.6 6.4l3.2 3.2M11.8 6.4l-3.2 3.2" stroke-width="1.4"/></svg>';
 const HELP_HTML = {
   none:  '',
   // Silent: the zoom panel already says "drag the ring to aim" and already
   // offers a red Delete zoom button. Repeating it here taught nothing.
   seg:   '',
-  piece: ICON_CUT + '<span>⌫ cuts this section</span>',
-  cut:   ICON_RESTORE + '<span>⌫ restores it</span>',
+  piece: ICON_DEL + '<span>cuts this section</span>',
+  cut:   ICON_DEL + '<span>restores it</span>',
 };
 // Only one of these removes footage. Deleting a zoom or restoring a cut are
 // both cheap; cutting a piece is the one worth marking. The tint goes on the
-// ⌫ chip, not the sentence, following #toast's coloured dot — and because
-// everything here is undoable, a red sentence would overstate it.
+// icon, not the sentence — see the .tl-help.danger rule, which follows
+// #delZoom, this file's one existing destructive-action precedent.
 const HELP_DANGER = { piece: true };
 function updateHelpStrip() {
   const k = S.selSeg >= 0 ? 'seg' : S.selCut >= 0 ? 'cut' : S.selPiece >= 0 ? 'piece' : 'none';
@@ -1184,7 +1203,14 @@ function loop() {
       if (cut.t1 >= S.trimOut - 0.01) { pause(); seekTo(S.trimIn); }
       else seekTo(cut.t1 + 0.001);
     }
-    else { renderFrame(); drawTimeline(); syncWebcamSoft(); tickCheck(); }
+    else {
+      // Zoomed in, the playhead leaves the right edge in about a second and you
+      // are left watching a still while the audio runs on. Page the window
+      // rather than recentring every frame: cheaper, and a timeline sliding
+      // under a pinned playhead reads as the world moving instead of you.
+      if (zoomedIn() && (t > S.viewT1 || t < S.viewT0)) setView(t - VSPAN() * 0.1, VSPAN());
+      renderFrame(); drawTimeline(); syncWebcamSoft(); tickCheck();
+    }
   }
   requestAnimationFrame(loop);
 }
@@ -1282,8 +1308,13 @@ $('playBtn').onclick = () => S.playing ? pause() : play();
 // "The start" is the first frame that survives trim + cuts, not source 0:00 —
 // one definition, shared by the Home/End keys and the transport buttons, so
 // the button and the key can never drift apart.
-function goToOutStart() { pause(); seekTo(out2src(0)); }
-function goToOutEnd()   { pause(); seekTo(out2src(outDuration())); }
+// The guard lives HERE, not in the keydown handler, or the claim above is a
+// lie: the keys were guarded by the handler and #startBtn reached the same
+// function unguarded. Mid-export that seeks the video out from under the
+// encoder between frames (rule 10's defect, one click away), and pre-load it
+// throws on a null S.video.
+function goToOutStart() { if (!S.loaded || S.exporting) return; pause(); seekTo(out2src(0)); }
+function goToOutEnd()   { if (!S.loaded || S.exporting) return; pause(); seekTo(out2src(outDuration())); }
 $('startBtn').onclick = goToOutStart;
 function updateTimeUI() {
   const removed = S.duration - outDuration();
@@ -1296,20 +1327,42 @@ const tl = $('timeline');
 const tctx = tl.getContext('2d');
 function sizeTimeline() {
   const dpr = window.devicePixelRatio || 1;
-  tl.width = tl.clientWidth * dpr; tl.height = 84 * dpr;
+  tl.width = tl.clientWidth * dpr; tl.height = TL_H * dpr;
   tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawTimeline();
 }
 window.addEventListener('resize', () => { sizeTimeline(); });
 
-const T2X = t => 10 + (tl.clientWidth - 20) * (t / Math.max(S.duration, 0.001));
-const X2T = x => clamp((x - 10) / (tl.clientWidth - 20), 0, 1) * S.duration;
+// Time <-> pixels, against the VISIBLE window rather than the whole recording.
+// Every one of the 21 conversions in this file goes through these two, so the
+// trim handles, zoom segments, splits, cuts and every drag follow zoom for free.
+const VSPAN = () => Math.max(S.viewT1 - S.viewT0, 0.001);
+const T2X = t => 10 + (tl.clientWidth - 20) * ((t - S.viewT0) / VSPAN());
+const X2T = x => S.viewT0 + clamp((x - 10) / (tl.clientWidth - 20), 0, 1) * VSPAN();
+// Furthest in: about a second across the width. Past that there is nothing to see.
+const MIN_SPAN = () => Math.min(1, S.duration || 1);
+// One place owns the clamping, so no caller can invent its own rules.
+function setView(t0, span) {
+  if (!S.loaded) return;
+  span = clamp(span, MIN_SPAN(), S.duration);
+  S.viewT0 = clamp(t0, 0, S.duration - span);
+  S.viewT1 = S.viewT0 + span;
+  drawTimeline();
+  syncZoomSlider();
+}
+const zoomedIn = () => VSPAN() < S.duration - 0.01;
 
 // lanes: ruler 0-12 · video track 14-32 · zooms 36-60 · clicks ~66
-const VID_Y = 14, VID_H = 18, ZOOM_Y = 36, ZOOM_H = 24;
+// Lanes, top to bottom: ruler 2-10, video 14-32, zooms 36-60, click dots ~67,
+// trim brackets 13-76, scroll bar 83-90. The canvas grew 84 -> 96 for the bar:
+// the space below the zoom lane was already taken by the dots and the brackets.
+// The bar's row is reserved whether or not it draws, so zooming never shifts
+// the layout.
+const TL_H = 96;
+const VID_Y = 14, VID_H = 18, ZOOM_Y = 36, ZOOM_H = 24, BAR_Y = 83, BAR_H = 7;
 
 function drawTimeline() {
-  const W = tl.clientWidth, H = 84;
+  const W = tl.clientWidth, H = TL_H;
   tctx.clearRect(0, 0, W, H);
   if (!S.loaded) {
     tctx.fillStyle = '#8b94a8'; tctx.font = '12px sans-serif';
@@ -1321,13 +1374,21 @@ function drawTimeline() {
   tctx.fillRect(0, 0, T2X(S.trimIn), H);
   tctx.fillRect(T2X(S.trimOut), 0, W - T2X(S.trimOut), H);
 
-  // ruler
+  // Ruler. Spacing comes from what is VISIBLE, not from S.duration — otherwise
+  // zooming into two seconds of a long take still labels every fifteen, which
+  // is the whole point of zooming gone. Indexed off the step rather than
+  // accumulating t += step, so 0.1s steps don't drift.
   tctx.strokeStyle = '#343b49'; tctx.fillStyle = '#8b94a8'; tctx.font = '10px sans-serif';
-  const step = S.duration > 90 ? 15 : S.duration > 30 ? 5 : 1;
-  for (let t = 0; t <= S.duration; t += step) {
+  const span = VSPAN();
+  const step = span > 240 ? 60 : span > 90 ? 15 : span > 30 ? 5 : span > 8 ? 1 : span > 3 ? 0.5 : 0.1;
+  const pxStep = (W - 20) * step / span;
+  const labelEvery = Math.max(1, Math.ceil(58 / pxStep));   // ~58px of breathing room
+  for (let i = Math.floor(S.viewT0 / step); i <= Math.ceil(S.viewT1 / step); i++) {
+    const t = i * step;
+    if (t < -0.001 || t > S.duration + 0.001) continue;
     const x = T2X(t);
     tctx.beginPath(); tctx.moveTo(x, 2); tctx.lineTo(x, 8); tctx.stroke();
-    if (t % (step * (S.duration > 30 ? 2 : 5)) < 0.01 || step >= 5) tctx.fillText(fmtT(t), x + 3, 10);
+    if (i % labelEvery === 0) tctx.fillText(fmtT(t), x + 3, 10);
   }
 
   // ---- video track lane: pieces + cuts + splits
@@ -1397,16 +1458,31 @@ function drawTimeline() {
     tctx.strokeStyle = snapped ? '#4fd1c5' : '#e8eaf0';
     const x = T2X(t);
     tctx.beginPath();
-    tctx.moveTo(x + dir * 5, 13); tctx.lineTo(x, 13); tctx.lineTo(x, 80); tctx.lineTo(x + dir * 5, 80);
+    tctx.moveTo(x + dir * 5, 13); tctx.lineTo(x, 13); tctx.lineTo(x, 76); tctx.lineTo(x + dir * 5, 76);
     tctx.stroke();
   }
 
-  // playhead
+  // playhead — stops above the scroll bar, which is a different coordinate
+  // space (the whole recording, not the visible window)
   const px = T2X(S.video.currentTime);
   tctx.strokeStyle = '#ff6c7c'; tctx.lineWidth = 1.5;
-  tctx.beginPath(); tctx.moveTo(px, 0); tctx.lineTo(px, H); tctx.stroke();
+  tctx.beginPath(); tctx.moveTo(px, 0); tctx.lineTo(px, 76); tctx.stroke();
   tctx.fillStyle = '#ff6c7c';
   tctx.beginPath(); tctx.moveTo(px - 5, 0); tctx.lineTo(px + 5, 0); tctx.lineTo(px, 7); tctx.closePath(); tctx.fill();
+
+  // Scroll bar. Only when zoomed: at fit it would say "you can see all of it",
+  // which the timeline already says by being the timeline. Same principle as
+  // the selection message — silent until it has something to tell you.
+  // NB this strip maps the WHOLE recording, not the visible window, so it does
+  // not use T2X.
+  if (zoomedIn()) {
+    const bx = t => 10 + (W - 20) * (t / Math.max(S.duration, 0.001));
+    tctx.fillStyle = '#222633';
+    roundRectPath(tctx, 10, BAR_Y, W - 20, BAR_H, BAR_H / 2); tctx.fill();
+    const x0 = bx(S.viewT0), x1 = bx(S.viewT1);
+    tctx.fillStyle = tlDrag && tlDrag.kind === 'bar' ? '#8b94a8' : '#5c6789';
+    roundRectPath(tctx, x0, BAR_Y, Math.max(x1 - x0, 12), BAR_H, BAR_H / 2); tctx.fill();
+  }
 }
 
 // trim brackets snap to times the user chose deliberately — visible splits
@@ -1427,10 +1503,44 @@ function snapT(t, e) {
 
 // timeline interactions
 let tlDrag = null;
+// Pinch to zoom, two fingers sideways to slide. A trackpad pinch reaches the
+// browser as a wheel event with ctrlKey set — that is the platform convention,
+// not a modifier the user holds. passive:false so preventDefault can stop the
+// page itself zooming. Guarded like every other entry point: a review
+// found a control that reached a shared function around its guard.
+tl.addEventListener('wheel', e => {
+  if (!S.loaded || S.cropMode || S.exporting) return;
+  e.preventDefault();
+  const span = VSPAN();
+  if (e.ctrlKey) {
+    // keep the instant under the pointer pinned while the span changes, or
+    // zooming feels like it is fighting you
+    const anchor = X2T(e.offsetX);
+    const frac = (anchor - S.viewT0) / span;
+    setView(anchor - frac * clamp(span * Math.exp(e.deltaY * 0.01), MIN_SPAN(), S.duration),
+            span * Math.exp(e.deltaY * 0.01));
+  } else {
+    setView(S.viewT0 + (e.deltaX || e.deltaY) / Math.max(tl.clientWidth - 20, 1) * span, span);
+  }
+}, { passive: false });
+
 tl.addEventListener('pointerdown', e => {
   if (!S.loaded || S.cropMode || S.exporting) return;   // a scrub mid-export injects wrong frames
   tl.setPointerCapture(e.pointerId);
   const x = e.offsetX, y = e.offsetY, t = X2T(x);
+  // Scroll bar, before everything else: it owns its own row and its own
+  // coordinate space. Panning is not an edit, so no pushUndo here (rule 13).
+  if (zoomedIn() && y >= BAR_Y - 5 && y <= BAR_Y + BAR_H + 5) {
+    const W = tl.clientWidth;
+    const barT = (W - 20) ? (x - 10) / (W - 20) * S.duration : 0;
+    const span = VSPAN();
+    // clicking the track jumps there; grabbing the thumb keeps your grip on it
+    const onThumb = barT >= S.viewT0 && barT <= S.viewT1;
+    if (!onThumb) setView(barT - span / 2, span);
+    tlDrag = { kind: 'bar', grab: barT - S.viewT0 };
+    drawTimeline();
+    return;
+  }
   // trim handles first
   if (Math.abs(x - T2X(S.trimIn)) < 7)  { pushUndo(); tlDrag = { kind: 'trimIn' }; return; }
   if (Math.abs(x - T2X(S.trimOut)) < 7) { pushUndo(); tlDrag = { kind: 'trimOut' }; return; }
@@ -1491,6 +1601,14 @@ tl.addEventListener('pointermove', e => {
   const t = X2T(e.offsetX);
   const s = tlDrag.i != null ? S.segs[tlDrag.i] : null;
   switch (tlDrag.kind) {
+    // Bar drag reads raw x against the whole recording, not X2T, because the
+    // bar is not in the visible-window coordinate space the rest of this uses.
+    case 'bar': {
+      const W = tl.clientWidth;
+      const barT = (W - 20) ? (e.offsetX - 10) / (W - 20) * S.duration : 0;
+      setView(barT - tlDrag.grab, VSPAN());
+      return;
+    }
     case 'scrub':  seekTo(t); break;
     case 'trimIn':  S.trimIn = clamp(snapT(t, e), 0, S.trimOut - 0.5); break;
     case 'trimOut': S.trimOut = clamp(snapT(t, e), S.trimIn + 0.5, S.duration); break;
@@ -1660,6 +1778,27 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'Home') { e.preventDefault(); goToOutStart(); }
   else if (e.key === 'End')  { e.preventDefault(); goToOutEnd(); }
 });
+// Zoom slider. Wired by hand, NOT with bindRange: that helper writes into
+// S.set, which serializeEdits persists, so the autosave would fire on someone
+// merely zooming and rule 9's "has an autosave" predicate would read a look as
+// an edit. Rule 13. The obvious reuse is the wrong reuse here.
+// Log scale, or the bottom of the travel is unusable on a long recording.
+const zSlider = $('tlZoom');
+const maxZoom = () => Math.max(S.duration / MIN_SPAN(), 1);
+function syncZoomSlider() {
+  const z = S.duration / VSPAN();
+  const mz = maxZoom();
+  zSlider.value = mz > 1 ? clamp(Math.log(z) / Math.log(mz), 0, 1) * 100 : 0;
+  setFill(zSlider);
+}
+zSlider.addEventListener('input', () => {
+  if (!S.loaded || S.exporting) return;
+  const centre = (S.viewT0 + S.viewT1) / 2;
+  const span = S.duration / Math.pow(maxZoom(), zSlider.value / 100);
+  setView(centre - span / 2, span);
+});
+setFill(zSlider);
+
 $('splitBtn').onclick = splitAtPlayhead;
 function toggleShortcuts() { $('shortcuts').classList.toggle('open'); }
 // The sheet needs a mouse route in. Typing "?" is Shift+/ on a real keyboard,
@@ -1840,7 +1979,7 @@ function updateSizeEst() {
   $('sizeEst').textContent = `MP4 · ${resSel === 'native' ? H + 'p' : resSel + 'p'} · ${fps} · ≈${size}`;
   $('popEst').textContent = `${W}×${H} · estimated ≈ ${size}`;
 }
-// export settings popover (the one Glasshouse moment)
+// export settings popover
 // inert tracks .open: a popover hidden by opacity is still tabbable without it
 function setPopover(open) {
   $('exportPop').classList.toggle('open', open);

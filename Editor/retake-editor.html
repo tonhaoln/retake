@@ -104,7 +104,7 @@ label.row .val{
 #exportProgress .bar{width:170px; height:5px; background:var(--s3); border-radius:3px; overflow:hidden}
 #exportProgress .bar i{display:block; height:100%; width:0%; background:var(--grad); transition:width .2s var(--ease)}
 
-/* export chip + popover (the one Glasshouse moment) */
+/* export chip + popover */
 #exportChip{
   background:var(--s2); border:1px solid var(--line); border-radius:8px;
   padding:6px 12px; font-size:12px; color:var(--dim); cursor:pointer;
@@ -225,16 +225,18 @@ label.row .val{
 #bottom{flex:0 0 auto; background:var(--s1); border-top:1px solid var(--line); padding:8px 16px 12px}
 #transport{display:flex; align-items:center; gap:10px; margin-bottom:8px}
 #startBtn{width:34px; padding:6px 0}
-/* margin-left:auto moved here off .tl-help: it right-anchors the help button
-   and leaves the message sitting next to the time, with the gap between. */
-#helpBtn{margin-left:auto; font-size:12px; color:var(--dim); flex:0 0 auto}
+/* The gap is claimed by #tlZoom now, which sits just before this. Two auto
+   margins would split it between them and neither would sit where it should. */
+#helpBtn{font-size:12px; color:var(--dim); flex:0 0 auto}
 #helpBtn:hover{color:var(--text)}
 #playBtn{width:42px; padding:6px 0}
 #playBtn .ic-pause{display:none}
 #playBtn.playing .ic-play{display:none}
 #playBtn.playing .ic-pause{display:inline}
 #time{font-variant-numeric:tabular-nums; color:var(--dim); min-width:130px; font-size:12px}
-#timeline{width:100%; height:84px; display:block; border-radius:10px; background:var(--s2)}
+#timeline{width:100%; height:96px; display:block; border-radius:10px; background:var(--s2)}
+/* the base input[type=range] rule is flex:1, which would eat the whole row */
+#tlZoom{width:90px; flex:0 0 auto; margin-left:auto}
 /* The selection message. Sits straight after the time readout, because that is
    where the eye already is after clicking the timeline — the far right of this
    row is the furthest point from it. It lives in the flex gap, so appearing and
@@ -499,6 +501,9 @@ label.row .val{
     </button>
     <span id="time">0:00.0 / 0:00.0</span>
     <span class="tl-help" id="tlHelp"></span>
+    <input id="tlZoom" type="range" min="0" max="100" step="1" value="0"
+           data-tip="Zoom the timeline — or pinch on it, two fingers to slide along"
+           aria-label="Zoom the timeline">
     <button id="helpBtn" data-tip="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <rect x="1.2" y="3.8" width="13.6" height="8.4" rx="1.6"/>
@@ -506,11 +511,14 @@ label.row .val{
       </svg>Shortcuts
     </button>
   </div>
-  <canvas id="timeline" height="84"></canvas>
+  <canvas id="timeline" height="96"></canvas>
 </div>
 
 <div id="toast" role="status" aria-live="polite"><span id="toastMsg"></span></div>
-<div id="tip" role="tooltip"></div>
+<!-- aria-hidden, not role="tooltip": nothing points at this via aria-describedby,
+     so announcing it would put a tooltip in the a11y tree that describes
+     nothing. Screen readers get the aria-label on each control instead. -->
+<div id="tip" aria-hidden="true"></div>
 
 <div id="shortcuts">
   <div class="sheet">

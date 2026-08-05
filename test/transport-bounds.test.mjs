@@ -13,8 +13,19 @@ const near = (a, b, tol = 0.15) => Math.abs(a - b) < tol;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
-page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message));
+page.on('pageerror', e => { console.log('PAGE EXCEPTION:', e.message); fails.push('page exception: ' + e.message); });
 await page.goto(EDITOR_URL);
+
+// ------------------------- 0. the guard, before a recording exists at all
+// #startBtn is visible and hit-testable from first paint and reaches the same
+// function the Home key does. The key was guarded by the keydown handler and
+// the button was not, so pre-load it dereferenced a null S.video. The guard
+// belongs in the shared function or the two paths were never really one.
+await page.locator('#startBtn').click();
+await page.waitForTimeout(250);
+check('skip-to-start before any recording is inert, not a crash',
+  !fails.some(f => f.startsWith('page exception')));
+
 await page.setInputFiles('#dirInput', FIX);
 await page.waitForFunction(() => !document.getElementById('exportBtn').disabled, { timeout: 20000 });
 
@@ -131,6 +142,41 @@ check(`help button opens the shortcuts sheet (${openBefore} -> ${openAfter})`, !
 const listsHome = await page.evaluate(() =>
   document.getElementById('shortcuts').textContent.includes('Home'));
 check('the sheet documents Home for anyone who wants the key', listsHome);
+// Close it before anything else clicks: #shortcuts is inset:0 z-index:80, so
+// while it is open it swallows every pointer event on the page.
+await page.keyboard.press('Escape');
+await page.waitForTimeout(250);
+
+// ---------------------------------- 9. the button refuses mid-export
+// The export loop yields between frames (`await seekBoth`), so a seek landing
+// in that gap resolves the encoder's own wait early and draws frame i from the
+// wrong source time — rule 10's defect, reachable by one click on a control
+// this work added. Seven mutating handlers guard on S.exporting; this one
+// reached the shared function around them.
+await page.evaluate(p => { pause(); seekTo(p); }, park);
+await page.waitForTimeout(250);
+await page.evaluate(() => { S.exporting = true; });
+const beforeExp = await page.evaluate(() => S.video.currentTime);
+await page.locator('#startBtn').click();
+await page.waitForTimeout(350);
+const afterExp = await page.evaluate(() => S.video.currentTime);
+check(`the button refuses mid-export (${beforeExp.toFixed(2)} -> ${afterExp.toFixed(2)}, unmoved)`,
+  near(beforeExp, afterExp, 0.05));
+
+// Re-park first: measured against the same start, this assertion would fail
+// merely because the button above already moved the playhead. Each path has
+// to be tested from a clean position or the second one is just an echo.
+await page.evaluate(() => { S.exporting = false; });
+await page.evaluate(p => seekTo(p), park);
+await page.waitForTimeout(300);
+await page.evaluate(() => { S.exporting = true; });
+const beforeKey = await page.evaluate(() => S.video.currentTime);
+await page.keyboard.press('Home');
+await page.waitForTimeout(350);
+const afterKey = await page.evaluate(() => S.video.currentTime);
+check(`and the key refuses too, independently (${beforeKey.toFixed(2)} -> ${afterKey.toFixed(2)})`,
+  near(beforeKey, afterKey, 0.05));
+await page.evaluate(() => { S.exporting = false; });
 
 await browser.close();
 console.log(fails.length ? `\n${fails.length} FAILED: ${fails.join(', ')}` : '\nall transport-bounds assertions passed');
