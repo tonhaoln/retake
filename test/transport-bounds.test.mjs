@@ -1,6 +1,6 @@
-// Gate: Home/End land on the edges of the OUTPUT, not the source (friction
-// from the 4 Aug export night: "return the scrubber to the trim start, not
-// 0:00:00"). The discriminating case is a cut sitting AT trimIn — without it a
+// Gate: Home/End land on the edges of the OUTPUT, not the source. From a
+// real editing session: "return the scrubber to the trim start, not
+// 0:00:00". The discriminating case is a cut sitting AT trimIn — without it a
 // naive seekTo(S.trimIn) passes every assertion identically, because with no
 // cuts out2src(0) === S.trimIn. That case is assertion 2 and it is the only
 // reason this file exists.
@@ -101,7 +101,7 @@ const after = await page.evaluate(() => undoStack.length);
 check(`Home/End push no undo (${before} → ${after})`, before === after);
 
 // ------------------- 6. Home rescues a playhead parked in the shaded dead zone
-// This is the friction verbatim: the mouse can scrub into trimmed-away footage
+// This is the original complaint: the mouse can scrub into trimmed-away footage
 // (deliberately — that is how you choose where the bracket goes), and Home is
 // the way back. Starts OUTSIDE the window so it fails without the feature.
 await page.evaluate(d => { pause(); seekTo(d * 0.05); }, dur);

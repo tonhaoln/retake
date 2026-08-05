@@ -1,5 +1,5 @@
-// Gate: the timeline hint strip reads the current selection
-// item 4b). Four states — none, zoom, piece, cut — and it must reset through
+// Gate: the timeline hint strip reads the current selection.
+// Four states — none, zoom, piece, cut — and it must reset through
 // the two deleteSelection branches that skip updateZoomPanel, because a
 // status line that lies is worse than a faint one.
 import { chromium } from 'playwright';

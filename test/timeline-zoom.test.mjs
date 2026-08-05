@@ -4,8 +4,8 @@
 // persists S.set, and the autosave interval writes whenever that string
 // changes. Put the view window in S.set and merely zooming marks the recording
 // as edited — which then feeds rule 9's "has an autosave" predicate and pins
-// the take to the factory default look. That is the 2026-08-02 signal verbatim:
-// state written as a side effect of looking poisons every predicate built on it.
+// the take to the factory default look — state written as a side effect of
+// looking poisons every predicate built on it.
 import { chromium } from 'playwright';
 import { EDITOR_URL, FIX } from './paths.mjs';
 

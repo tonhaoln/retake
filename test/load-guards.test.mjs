@@ -1,5 +1,5 @@
 // The load path is the last mutating entry point that had no guard on it.
-// Two defects, both found in the pre-ship review (4 Aug):
+// Two defects, both found reviewing the editor before first release:
 //   1. a drop or Open mid-export swapped the video under the running encoder
 //   2. a damaged meta.json/cursor.json threw inside a promise whose only
 //      handler was console.error, so the drop looked like it did nothing
