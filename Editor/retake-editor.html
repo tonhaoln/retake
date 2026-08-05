@@ -239,15 +239,26 @@ label.row .val{
    where the eye already is after clicking the timeline — the far right of this
    row is the furthest point from it. It lives in the flex gap, so appearing and
    vanishing shifts no control. Invisible and padding-free until it has
-   something to say. */
+   something to say.
+   It is information, not a control, so it must not wear the button costume:
+   a background, a border and an 8px radius IS the button rule in this file,
+   and dressing a message in it invents a click that does nothing. A rule and
+   an icon do the separating instead. */
 .tl-help{
+  display:flex; align-items:center; gap:7px;
   font-size:12px; color:var(--text);
-  background:none; border:1px solid transparent; padding:5px 0; border-radius:8px;
+  border-left:1px solid transparent; padding-left:0;
   opacity:0; transition:opacity .15s var(--ease);
 }
-.tl-help.speaking{opacity:1; background:var(--s2); border-color:var(--line); padding:5px 10px}
-.tl-help kbd{background:var(--s3); border-radius:4px; padding:2px 6px; font:11px inherit}
-.tl-help.danger kbd{background:rgba(255,108,124,.18); color:var(--danger)}
+.tl-help.speaking{opacity:1; border-left-color:var(--line); padding-left:12px}
+.tl-help svg{
+  width:14px; height:14px; stroke:currentColor; fill:none;
+  stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;
+}
+/* Danger on the icon, not the sentence: it marks the state without shouting,
+   and everything here is undoable. Follows #delZoom, the file's one existing
+   destructive-action precedent. */
+.tl-help.danger svg{stroke:var(--danger)}
 
 #toast{
   position:fixed; left:50%; bottom:120px; transform:translateX(-50%) translateY(8px);

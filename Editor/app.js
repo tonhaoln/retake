@@ -469,11 +469,21 @@ function updateZoomPanel() {
 // things by state, and the one that destroys footage (⌫ on a piece) must
 // never be the silent one. Prebuilt variants — the kbd chips are children,
 // so textContent would flatten them. The ? overlay stays the full reference.
+// 14px icons at the same stroke weight as the Split button, because an 11px ⌫
+// character was unreadable and was the whole reason this line went unseen.
+// Deliberately NOT the scissors: Split already owns that mark and means
+// something non-destructive by it.
+const ICON_CUT = '<svg viewBox="0 0 16 16" aria-hidden="true">' +
+  '<path d="M2.5 4.2h11"/><path d="M5.8 4.2V2.6h4.4v1.6"/><path d="M4.2 4.2l.7 9.2h6.2l.7-9.2"/></svg>';
+const ICON_RESTORE = '<svg viewBox="0 0 16 16" aria-hidden="true">' +
+  '<path d="M13 12a5.5 5.5 0 0 0-5.5-5.5H3"/><path d="M6 3.5L2.5 6.5 6 9.5"/></svg>';
 const HELP_HTML = {
   none:  '',
-  seg:   '<kbd>⌫</kbd> delete this zoom · drag the ring to aim',
-  piece: '<kbd>⌫</kbd> cut this section',
-  cut:   '<kbd>⌫</kbd> restore',
+  // Silent: the zoom panel already says "drag the ring to aim" and already
+  // offers a red Delete zoom button. Repeating it here taught nothing.
+  seg:   '',
+  piece: ICON_CUT + '<span>⌫ cuts this section</span>',
+  cut:   ICON_RESTORE + '<span>⌫ restores it</span>',
 };
 // Only one of these removes footage. Deleting a zoom or restoring a cut are
 // both cheap; cutting a piece is the one worth marking. The tint goes on the
@@ -486,9 +496,11 @@ function updateHelpStrip() {
   if (el.dataset.state === k) return;
   el.dataset.state = k;
   el.innerHTML = HELP_HTML[k];
-  // Silent when nothing is selected. A line that always says something gets
-  // filed by the eye as furniture, and furniture is invisible at any size.
-  el.classList.toggle('speaking', k !== 'none');
+  // Silent unless this state has something to say. A line that always says
+  // something gets filed by the eye as furniture, invisible at any size.
+  // Keyed off the content, not the state name, so a state can fall silent
+  // (as seg did) without the styling drifting out of step with it.
+  el.classList.toggle('speaking', !!HELP_HTML[k]);
   el.classList.toggle('danger', !!HELP_DANGER[k]);
 }
 

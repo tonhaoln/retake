@@ -20,7 +20,7 @@ const strip = () => page.evaluate(() => {
   return {
     state: el.dataset.state || 'none',
     text: el.textContent,
-    kbds: el.querySelectorAll('kbd').length,
+    icons: el.querySelectorAll('svg').length,
     speaking: el.classList.contains('speaking'),
     danger: el.classList.contains('danger'),
   };
@@ -32,15 +32,13 @@ const strip = () => page.evaluate(() => {
 let s = await strip();
 check('says nothing when nothing is selected', s.text.trim() === '' && !s.speaking);
 
-// zoom selected → aim guidance
+// A selected zoom stays silent: the sidebar's #zoomSel panel already carries
+// both halves of what this used to say — the aim hint and a red Delete zoom
+// button. Two surfaces teaching one thing is what made the strip ignorable.
 await page.evaluate(() => addZoomAt(2));
 s = await strip();
-check('zoom selected reads delete + aim', s.state === 'seg' && s.text.includes('aim'));
-check('and it is now visible', s.speaking);
-// Proves innerHTML was used rather than textContent, which would flatten the
-// <kbd> children. Asserted on a speaking state because the resting one is empty.
-check('kbd chips survive as children', s.kbds >= 1);
-check('deleting a zoom is not marked destructive', !s.danger);
+check('a selected zoom says nothing, the sidebar owns it',
+  s.state === 'seg' && !s.speaking && s.text.trim() === '');
 
 // deselect → back to none
 await page.evaluate(() => { S.selSeg = -1; updateZoomPanel(); });
@@ -52,10 +50,14 @@ await page.evaluate(() => { pause(); seekTo(2.5); });
 await page.waitForTimeout(200);
 await page.evaluate(() => { splitAtPlayhead(); S.selPiece = 0; S.selSeg = -1; S.selCut = -1; updateZoomPanel(); });
 s = await strip();
-check('piece selected reads cut this section', s.state === 'piece' && s.text.includes('cut this section'));
+check('piece selected reads cuts this section', s.state === 'piece' && s.text.includes('cuts this section'));
+check('and it is visible', s.speaking);
+// Proves innerHTML was used rather than textContent, which would have
+// flattened the icon out. Asserted here because the resting state is empty.
+check('the icon survives as a child', s.icons === 1);
 // The one state that removes footage, and the only one that gets the tint.
-// Same key, three consequences: if this doesn't look different from "restore",
-// the strip isn't doing the job it exists for.
+// Same key, two consequences: if this doesn't look different from "restores
+// it", the strip isn't doing the job it exists for.
 check('cutting a piece IS marked destructive', s.danger);
 
 // deleting the piece goes through the branch that skips updateZoomPanel —
