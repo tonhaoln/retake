@@ -433,7 +433,7 @@ function updateZoomPanel() {
 // never be the silent one. Prebuilt variants — the kbd chips are children,
 // so textContent would flatten them. The ? overlay stays the full reference.
 const HELP_HTML = {
-  none:  '✂ <kbd>S</kbd> split · <kbd>?</kbd> shortcuts',
+  none:  '✂ <kbd>S</kbd> split',
   seg:   '<kbd>⌫</kbd> delete · drag the ring to aim',
   piece: '<kbd>⌫</kbd> cut this section',
   cut:   '<kbd>⌫</kbd> restore',
@@ -1219,6 +1219,12 @@ function seekTo(t) {
   setTimeout(once, 120); // belt & braces
 }
 $('playBtn').onclick = () => S.playing ? pause() : play();
+// "The start" is the first frame that survives trim + cuts, not source 0:00 —
+// one definition, shared by the Home/End keys and the transport buttons, so
+// the button and the key can never drift apart.
+function goToOutStart() { pause(); seekTo(out2src(0)); }
+function goToOutEnd()   { pause(); seekTo(out2src(outDuration())); }
+$('startBtn').onclick = goToOutStart;
 function updateTimeUI() {
   const removed = S.duration - outDuration();
   $('time').textContent = `${fmtT(src2out(S.video.currentTime))} / ${fmtT(outDuration())}` +
@@ -1589,11 +1595,16 @@ window.addEventListener('keydown', e => {
   // in at 0:05 with a cut running 0:05→0:08 sends Home to 0:08, not either
   // number. preventDefault because both keys otherwise scroll the sidebar.
   // Seeking is not an edit: no pushUndo (rule 7 — editSnapshot holds no playhead).
-  else if (e.key === 'Home') { e.preventDefault(); pause(); seekTo(out2src(0)); }
-  else if (e.key === 'End')  { e.preventDefault(); pause(); seekTo(out2src(outDuration())); }
+  else if (e.key === 'Home') { e.preventDefault(); goToOutStart(); }
+  else if (e.key === 'End')  { e.preventDefault(); goToOutEnd(); }
 });
 $('splitBtn').onclick = splitAtPlayhead;
 function toggleShortcuts() { $('shortcuts').classList.toggle('open'); }
+// The sheet needs a mouse route in. Typing "?" is Shift+/ on a real keyboard,
+// so a bare "?" key cap in the hint strip was teaching a chord it didn't name
+// — and reading as a button while doing nothing on click. The button is the
+// affordance now; the sheet still lists the key for anyone who wants it.
+$('helpBtn').onclick = toggleShortcuts;
 
 // ------------------------------------------------------------------ controls
 function bindRange(id, key, fmt, after) {

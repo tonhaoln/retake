@@ -22,8 +22,13 @@ const strip = () => page.evaluate(() => ({
 }));
 
 let s = await strip();
-check('boots in the none state', s.text.includes('split') && s.text.includes('shortcuts'));
-check('kbd chips survive as children', s.kbds >= 2);
+check('boots in the none state', s.text.includes('split'));
+// One chip is enough to prove the point this assertion exists for: innerHTML
+// was used, not textContent, which would have flattened the <kbd> children.
+// The strip dropped to a single chip on 5 Aug when the "?" cap left — it was
+// teaching a Shift+/ chord it didn't name, and looked clickable without being
+// clickable. The #helpBtn button carries that job now.
+check('kbd chips survive as children', s.kbds >= 1);
 
 // zoom selected → aim guidance
 await page.evaluate(() => addZoomAt(2));

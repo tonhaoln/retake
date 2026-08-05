@@ -102,6 +102,36 @@ const rescued = await page.evaluate(() => S.video.currentTime);
 check(`Home returns from the shaded zone (${stranded.toFixed(2)} → ${rescued.toFixed(2)}, trimIn ${A.toFixed(2)})`,
   stranded < A && rescued >= A - 0.15);
 
+// ------------------------------- 7. the button and the key are the same action
+// The friction that produced this gate was discovery, not behaviour: the key
+// existed and could not be found. If the button ever stops matching the key,
+// the discoverable path becomes the wrong one, which is worse than no button.
+await page.evaluate(([a, b, c]) => {
+  S.cuts = [{ t0: a, t1: b }]; S.trimIn = a; S.trimOut = c;
+}, [A, B, C]);
+await page.evaluate(p => { pause(); seekTo(p); }, park);
+await page.waitForTimeout(250);
+await page.locator('#startBtn').click();
+await page.waitForTimeout(350);
+const viaButton = await page.evaluate(() => S.video.currentTime);
+await page.evaluate(p => seekTo(p), park);
+await page.waitForTimeout(250);
+await page.keyboard.press('Home');
+await page.waitForTimeout(350);
+const viaKey = await page.evaluate(() => S.video.currentTime);
+check(`skip-to-start button agrees with Home (${viaButton.toFixed(2)} = ${viaKey.toFixed(2)}, both skip the cut to ${B.toFixed(2)})`,
+  near(viaButton, viaKey, 0.05) && near(viaButton, B));
+
+// -------------------------------------- 8. the help sheet has a mouse route in
+const openBefore = await page.evaluate(() => document.getElementById('shortcuts').classList.contains('open'));
+await page.locator('#helpBtn').click();
+await page.waitForTimeout(250);
+const openAfter = await page.evaluate(() => document.getElementById('shortcuts').classList.contains('open'));
+check(`help button opens the shortcuts sheet (${openBefore} -> ${openAfter})`, !openBefore && openAfter);
+const listsHome = await page.evaluate(() =>
+  document.getElementById('shortcuts').textContent.includes('Home'));
+check('the sheet documents Home for anyone who wants the key', listsHome);
+
 await browser.close();
 console.log(fails.length ? `\n${fails.length} FAILED: ${fails.join(', ')}` : '\nall transport-bounds assertions passed');
 process.exit(fails.length ? 1 : 0);

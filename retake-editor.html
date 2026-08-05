@@ -224,6 +224,9 @@ label.row .val{
 
 #bottom{flex:0 0 auto; background:var(--s1); border-top:1px solid var(--line); padding:8px 16px 12px}
 #transport{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+#startBtn{width:34px; padding:6px 0}
+#helpBtn{width:26px; height:26px; padding:0; border-radius:50%; font-size:12px; color:var(--dim); flex:0 0 auto}
+#helpBtn:hover{color:var(--text)}
 #playBtn{width:42px; padding:6px 0}
 #playBtn .ic-pause{display:none}
 #playBtn.playing .ic-play{display:none}
@@ -444,6 +447,12 @@ label.row .val{
 
 <div id="bottom">
   <div id="transport">
+    <button id="startBtn" title="Jump to the start of your trim (Home)" aria-label="Jump to the start of your trim">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M4 3.5v9" stroke-width="2.2"/>
+        <path d="M12.6 3.6v8.8L6.3 8z" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
     <button id="playBtn" title="Play / pause (space)" aria-label="Play" aria-pressed="false">
       <svg class="ic-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8v10.4L13 8z" fill="currentColor" stroke="none"/></svg>
       <svg class="ic-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3v10M11.5 3v10" stroke-width="2.6"/></svg>
@@ -452,7 +461,8 @@ label.row .val{
       <svg viewBox="0 0 16 16"><circle cx="4" cy="4.5" r="2"/><circle cx="4" cy="11.5" r="2"/><path d="M5.7 5.6L14 13M5.7 10.4L14 3"/></svg>Split
     </button>
     <span id="time">0:00.0 / 0:00.0</span>
-    <span class="tl-help" id="tlHelp">✂ <kbd>S</kbd> split · <kbd>?</kbd> shortcuts</span>
+    <span class="tl-help" id="tlHelp">✂ <kbd>S</kbd> split</span>
+    <button id="helpBtn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
   </div>
   <canvas id="timeline" height="84"></canvas>
 </div>
@@ -3655,7 +3665,7 @@ function updateZoomPanel() {
 // never be the silent one. Prebuilt variants — the kbd chips are children,
 // so textContent would flatten them. The ? overlay stays the full reference.
 const HELP_HTML = {
-  none:  '✂ <kbd>S</kbd> split · <kbd>?</kbd> shortcuts',
+  none:  '✂ <kbd>S</kbd> split',
   seg:   '<kbd>⌫</kbd> delete · drag the ring to aim',
   piece: '<kbd>⌫</kbd> cut this section',
   cut:   '<kbd>⌫</kbd> restore',
@@ -4441,6 +4451,12 @@ function seekTo(t) {
   setTimeout(once, 120); // belt & braces
 }
 $('playBtn').onclick = () => S.playing ? pause() : play();
+// "The start" is the first frame that survives trim + cuts, not source 0:00 —
+// one definition, shared by the Home/End keys and the transport buttons, so
+// the button and the key can never drift apart.
+function goToOutStart() { pause(); seekTo(out2src(0)); }
+function goToOutEnd()   { pause(); seekTo(out2src(outDuration())); }
+$('startBtn').onclick = goToOutStart;
 function updateTimeUI() {
   const removed = S.duration - outDuration();
   $('time').textContent = `${fmtT(src2out(S.video.currentTime))} / ${fmtT(outDuration())}` +
@@ -4811,11 +4827,16 @@ window.addEventListener('keydown', e => {
   // in at 0:05 with a cut running 0:05→0:08 sends Home to 0:08, not either
   // number. preventDefault because both keys otherwise scroll the sidebar.
   // Seeking is not an edit: no pushUndo (rule 7 — editSnapshot holds no playhead).
-  else if (e.key === 'Home') { e.preventDefault(); pause(); seekTo(out2src(0)); }
-  else if (e.key === 'End')  { e.preventDefault(); pause(); seekTo(out2src(outDuration())); }
+  else if (e.key === 'Home') { e.preventDefault(); goToOutStart(); }
+  else if (e.key === 'End')  { e.preventDefault(); goToOutEnd(); }
 });
 $('splitBtn').onclick = splitAtPlayhead;
 function toggleShortcuts() { $('shortcuts').classList.toggle('open'); }
+// The sheet needs a mouse route in. Typing "?" is Shift+/ on a real keyboard,
+// so a bare "?" key cap in the hint strip was teaching a chord it didn't name
+// — and reading as a button while doing nothing on click. The button is the
+// affordance now; the sheet still lists the key for anyone who wants it.
+$('helpBtn').onclick = toggleShortcuts;
 
 // ------------------------------------------------------------------ controls
 function bindRange(id, key, fmt, after) {
