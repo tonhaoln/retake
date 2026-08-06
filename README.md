@@ -90,6 +90,11 @@ Then build the recorder:
     retake --fps 30           # lighter files
     retake --out ~/Movies     # save somewhere other than ~/Desktop/Retake
 
+With `--webcam` or `--mic`, Retake switches the camera on first and waits for
+you to press **Enter**. A camera takes about a second to wake up, and this way
+that second happens before the recording rather than inside it — so your take
+starts when you do. (Scripts aren't prompted.) Plain `retake` starts straight away.
+
 Stop with **Ctrl+C** in the terminal — or **⌃⎋ (Control+Escape)** from any app.
 You get a folder like `~/Desktop/Retake/2026-07-29 14.03.12.take` containing
 the raw video (with system audio), cursor data, and webcam/mic track.

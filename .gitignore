@@ -4,3 +4,4 @@ node_modules/
 .claude/
 test/out/
 Editor/dist-retake-editor.html
+.vscode/

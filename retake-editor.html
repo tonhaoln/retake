@@ -3524,6 +3524,7 @@ async function loadFromFiles(fileList) {
   S.viewT0 = 0; S.viewT1 = video.duration;   // every recording opens fully zoomed out
   S.pointScale = meta && meta.pointWidth ? video.videoWidth / meta.pointWidth : 1;
   S.segs = []; S.selSeg = -1; S.loaded = true;
+  camCacheReady = false;   // never let the previous recording's face survive into this one
   S.splits = []; S.cuts = []; S.selPiece = -1; S.selCut = -1;
   S.cropMode = false;
   // Geometry belongs to the recording it was drawn on, never to the app: a crop
@@ -4036,6 +4037,24 @@ function drawArrow(ctx, x, y, s) {
   ctx.restore();
 }
 
+// Last good webcam frame. A decoder that is mid-seek has nothing to hand
+// over, so the bubble repaints this rather than vanishing. Sized to the
+// video, so the cover maths in draw() is identical either way. Cleared on
+// load — otherwise the previous recording's face survives into the first
+// frames of the next one.
+let camCache = null, camCacheReady = false;
+function camFrame() {
+  const el = S.webcam;
+  if (el.readyState < 2) return camCacheReady ? camCache : null;
+  const cw = el.videoWidth, ch = el.videoHeight;
+  if (!cw || !ch) return null;
+  if (!camCache) camCache = document.createElement('canvas');
+  if (camCache.width !== cw || camCache.height !== ch) { camCache.width = cw; camCache.height = ch; }
+  camCache.getContext('2d').drawImage(el, 0, 0);
+  camCacheReady = true;
+  return el;
+}
+
 function draw(ctx, W, H, t, opts = {}) {
   const cr = cropRect();
   const vw = cr.w, vh = cr.h;      // virtual (cropped) recording dimensions
@@ -4219,13 +4238,31 @@ function draw(ctx, W, H, t, opts = {}) {
     }
   }
 
-  // webcam bubble (screen-space, unaffected by zoom)
-  if (S.webcam && S.set.camShow && S.webcam.readyState >= 2) {
+  // Webcam bubble (screen-space, unaffected by zoom). It draws when footage
+  // EXISTS for this timestamp — the same predicate syncWebcamSoft uses to
+  // decide play or pause, so the two can never disagree. Both halves of that
+  // came from real recordings: the camera warm-up leaves a take's first
+  // second with no webcam footage at all, and painting frame 0 across it
+  // baked a frozen face into exports as well as the preview; while keying the
+  // draw off readyState instead made a fast scrub blink the bubble out
+  // entirely (no-frame-ready on 29 of 36 samples mid-scrub) even though the
+  // screen video beside it never flickered — because drawing a mid-seek
+  // element simply repaints its last frame, which is what a viewer wants.
+  // The fade is the cursor's own idle-fade language (see cursorAlpha), and
+  // only runs when there is a gap to cover: footage present from the first
+  // frame appears immediately.
+  const camT = t - S.webcamOffset;
+  const camOK = S.webcam && S.set.camShow && camT >= 0 && camT <= S.webcam.duration;
+  const camA = !camOK ? 0 : S.webcamOffset <= 0 ? 1 : clamp(camT / 0.3, 0, 1);
+  const camSrc = camA > 0 ? camFrame() : null;
+  if (camSrc) {
     const d = S.set.camSize / 100 * Math.min(W, H);
     const m = Math.max(pad * 0.55, Math.min(W, H) * 0.022);
     const x = S.set.camPos.includes('l') ? m : W - m - d;
     const y = S.set.camPos.includes('t') ? m : H - m - d;
     const r = S.set.camShape === 'circle' ? d / 2 : d * 0.18;
+    ctx.save();
+    ctx.globalAlpha = camA;
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = d * 0.18; ctx.shadowOffsetY = d * 0.05;
     roundRectPath(ctx, x, y, d, d, r);
@@ -4236,10 +4273,11 @@ function draw(ctx, W, H, t, opts = {}) {
     ctx.clip();
     const cw = S.webcam.videoWidth, ch = S.webcam.videoHeight;
     const cscale = Math.max(d / cw, d / ch);   // cover
-    ctx.drawImage(S.webcam, x + d / 2 - cw * cscale / 2, y + d / 2 - ch * cscale / 2, cw * cscale, ch * cscale);
+    ctx.drawImage(camSrc, x + d / 2 - cw * cscale / 2, y + d / 2 - ch * cscale / 2, cw * cscale, ch * cscale);
     ctx.restore();
     roundRectPath(ctx, x, y, d, d, r);
     ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = Math.max(1.5, d * 0.012); ctx.stroke();
+    ctx.restore();
   }
 
   // zoom-aim overlay (preview only)

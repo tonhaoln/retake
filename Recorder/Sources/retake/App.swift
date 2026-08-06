@@ -68,6 +68,9 @@ func parseArgs() -> Options {
               --no-system-audio  don't capture system/app audio
               --no-notify        skip the local "Saved" notification on stop
               --out DIR          output folder (default ~/Desktop/Retake/<timestamp>.take)
+            With --webcam or --mic, the camera is switched on first and the
+            recording waits for you to press Enter, so no take begins with the
+            camera still waking up. Skipped when stdin is not a terminal.
             Stop with Ctrl+C, or ⌃⎋ (Control+Escape) from any app.
             Tip: don't move the window during a --window recording — the cursor
             is logged against the window's starting position.
@@ -411,8 +414,13 @@ final class CameraRecorder: NSObject, AVCaptureFileOutputRecordingDelegate {
     private var startCont: CheckedContinuation<Void, Never>?
     private var stopCont: CheckedContinuation<Void, Never>?
 
+    /// Bring the hardware up: permissions, configuration, and startRunning —
+    /// the slow half. Apple documents startRunning as a blocking hardware call
+    /// (100–500ms, worse from cold), and every millisecond of it used to land
+    /// inside the recording, because this ran after screen capture had already
+    /// started. Separated so the wait happens before anything is captured.
     /// video=false → mic-only recording
-    func start(to url: URL, video: Bool) async -> Bool {
+    func prepare(video: Bool) async -> Bool {
         // Ask for permissions up-front so we never hang waiting for a recording to start.
         if video {
             let camOK = await AVCaptureDevice.requestAccess(for: .video)
@@ -444,9 +452,13 @@ final class CameraRecorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         }
         session.commitConfiguration()
         session.startRunning()
+        return true
+    }
+
+    /// Start writing. Cheap, because prepare() already woke the hardware.
+    func beginRecording(to url: URL) async {
         output.startRecording(to: url, recordingDelegate: self)
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in startCont = c }
-        return true
     }
 
     func fileOutput(_ o: AVCaptureFileOutput, didStartRecordingTo url: URL, from connections: [AVCaptureConnection]) {
@@ -574,7 +586,34 @@ struct Main {
             captureMeta = ["mode": "display", "index": opts.displayIndex]
         }
 
-        // Output bundle
+        // The camera wakes up FIRST, before anything is being captured. It is
+        // the slow device, and it used to be started after the screen was
+        // already rolling, so its whole warm-up — most of a second from cold —
+        // was recorded as a stretch of take with no webcam footage in it. This
+        // also moves the first-run permission dialog out of the recording,
+        // which is where it used to appear.
+        var camera: CameraRecorder? = nil
+        var cameraFile: String? = nil
+        if opts.webcam || opts.mic {
+            let cam = CameraRecorder()
+            if await cam.prepare(video: opts.webcam) {
+                camera = cam
+                cameraFile = opts.webcam ? "webcam.mov" : "audio.mov"
+            }
+        }
+
+        // With the hardware hot, the take starts when you are ready rather than
+        // when the camera finishes waking. Skipped when stdin is not a terminal
+        // so scripted runs never hang waiting for a keypress that cannot come.
+        if camera != nil && isatty(STDIN_FILENO) != 0 {
+            print("● \(opts.webcam ? "Camera" : "Microphone") ready. Press Enter to start recording (Ctrl+C to cancel).")
+            _ = readLine()
+        }
+
+        // Output bundle, created only once the recording is actually going to
+        // happen: cancelling at the prompt above must leave nothing behind, and
+        // the folder's timestamp should say when the take began rather than
+        // when the camera was switched on.
         let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd HH.mm.ss"
         let name = "\(df.string(from: Date())).take"
         let baseDir = opts.outDir.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
@@ -613,6 +652,14 @@ struct Main {
         cursor.onHotkey = { kill(getpid(), SIGINT) }
         cursor.start()
 
+        // Camera before screen: whichever starts last defines the gap, and a
+        // camera that is already writing when the first screen frame lands
+        // gives a negative webcamOffset — footage covering the take from its
+        // very first frame, which is what the editor wants.
+        if let cam = camera, let file = cameraFile {
+            await cam.beginRecording(to: bundle.appendingPathComponent(file))
+        }
+
         let screen: ScreenRecorder
         do {
             screen = try ScreenRecorder(outputURL: bundle.appendingPathComponent("screen.mov"),
@@ -624,17 +671,8 @@ struct Main {
         } catch {
             fputs("❌ Could not start screen capture: \(error.localizedDescription)\n", stderr)
             fputs("   Check Screen Recording permission for your terminal app.\n", stderr)
+            await camera?.stop()
             exit(1)
-        }
-
-        var camera: CameraRecorder? = nil
-        var cameraFile: String? = nil
-        if opts.webcam || opts.mic {
-            let cam = CameraRecorder()
-            let file = opts.webcam ? "webcam.mov" : "audio.mov"
-            if await cam.start(to: bundle.appendingPathComponent(file), video: opts.webcam) {
-                camera = cam; cameraFile = file
-            }
         }
 
         // Crash safety, started once the camera is up so its offset is capturable:
