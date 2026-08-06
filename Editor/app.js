@@ -1216,13 +1216,25 @@ function loop() {
 }
 requestAnimationFrame(loop);
 
+// Preview AV sync: correct drift by RATE, never by seeking. A hard seek on a
+// real H.264 webcam file stalls its decoder long enough to re-arm the next
+// correction — a self-sustaining storm, measured at 31 seeks in 6s of
+// playback on a real take, every one an audible pop and a visible skip. The
+// export path is immune (seekBoth steps per frame; there is no realtime
+// clock to chase). Small drift nudges playbackRate instead — proportional,
+// clamped to ±10%, pitch preserved by the browser — which also absorbs
+// genuine clock drift between the two files. Only a real jump, which is
+// what a scrub produces, earns a seek.
 function syncWebcamSoft() {
   for (const el of [S.webcam, S.micEl === S.webcam ? null : S.micEl]) {
     if (!el) continue;
     const want = S.video.currentTime - S.webcamOffset;
-    if (want < 0 || want > el.duration) { if (!el.paused) el.pause(); continue; }
+    if (want < 0 || want > el.duration) { if (!el.paused) { el.pause(); el.playbackRate = 1; } continue; }
     if (el.paused) el.play().catch(() => {});
-    if (Math.abs(el.currentTime - want) > 0.12) el.currentTime = want;
+    const drift = el.currentTime - want;   // + ahead of the screen, − behind
+    if (!isFinite(drift)) continue;        // pre-metadata: no basis to correct yet
+    if (Math.abs(drift) > 0.75) { el.currentTime = want; el.playbackRate = 1; }
+    else el.playbackRate = Math.abs(drift) < 0.02 ? 1 : 1 + clamp(-drift * 0.5, -0.1, 0.1);
   }
 }
 

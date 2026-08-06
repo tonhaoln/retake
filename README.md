@@ -38,6 +38,13 @@ The binary is not notarised by Apple. Two consequences worth knowing: a
 tarball downloaded in a **browser** gets quarantined by macOS — the `curl`
 line above does not — and macOS re-asks for permissions after each update.
 
+### Updating
+
+Run the install command again — it downloads the latest release and replaces
+both files. Retake never checks for updates itself (no network code is the
+point), so updating is always your move. macOS will re-ask for permissions
+after an update; that's the signature changing, not a fault.
+
 ### Permissions (first run)
 
 The first time you record, macOS will ask (or silently block) until
